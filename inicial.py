@@ -12,30 +12,33 @@ while True:
     _joystick.verificar_comandos()
     enviar = False
 
-    # analogicos
-    if (_joystick.analogico_esquerdo_y > 0.6 or _joystick.analogico_esquerdo_y < -0.6):
-        _dados.camera_vertical = _joystick.analogico_esquerdo_y
+    #### analogicos ####
+
+    # camera
+    if (_joystick.analogico_direito_y > 0.6 or _joystick.analogico_direito_y < -0.6):
+        _dados.camera_vertical = _joystick.analogico_direito_y
+        enviar = True
+    if (_joystick.analogico_direito_x > 0.6 or _joystick.analogico_direito_x < -0.6):
+        _dados.camera_horizontal = _joystick.analogico_direito_x
         enviar = True
 
-    if (_joystick.analogico_esquerdo_x > 0.6 or _joystick.analogico_esquerdo_x < -0.6):
-        _dados.camera_horizontal = _joystick.analogico_esquerdo_x
+    # direção esquerda / direita
+    if (_joystick.analogico_esquerdo_x > 0.6):
+        _dados.motor_esquerda = True
+        enviar = True
+    elif _joystick.analogico_esquerdo_x < -0.6:
+        _dados.motor_direita = True
         enviar = True
 
-    # botoes
+
+    #### botoes ####
+
+    # frente / tras
     if _dados.motor_frente != _joystick.botao_1:
         _dados.motor_frente = _joystick.botao_1
         enviar = True
-
     if _dados.motor_tras != _joystick.botao_2:
         _dados.motor_tras = _joystick.botao_2
-        enviar = True
-
-    if _dados.motor_esquerda != _joystick.botao_3:
-        _dados.motor_esquerda = _joystick.botao_3
-        enviar = True
-
-    if _dados.motor_direita != _joystick.botao_4:
-        _dados.motor_direita = _joystick.botao_4
         enviar = True
 
 
@@ -44,5 +47,7 @@ while True:
         _socket.enviar(dados_bytes)
         _dados.camera_vertical   = 0
         _dados.camera_horizontal = 0
+        _dados.motor_esquerda    = False
+        _dados.motor_direita     = False
 
     enviar = False
