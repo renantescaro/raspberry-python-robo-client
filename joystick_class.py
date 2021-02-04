@@ -47,19 +47,24 @@ class Joystick:
                 if int(event.button) == 0:
                     self.botao_1 = False #a
                 if int(event.button) == 1:
-                    self.botao_2 = False #a
+                    self.botao_2 = False #b
                 if int(event.button) == 2:
-                    self.botao_3 = False #a
+                    self.botao_3 = False #x
                 if int(event.button) == 3:
-                    self.botao_4 = False #a
+                    self.botao_4 = False #y
                 if int(event.button) == 4:
-                    self.botao_5 = False #a
+                    self.botao_5 = False #lb
                 if int(event.button) == 5:
-                    self.botao_6 = False #a
+                    self.botao_6 = False #rb
 
 
     def _verificar_analogicos(self):
+        # direção esquerda / direita
         self.analogico_esquerdo_x = self.joystick.get_axis(0)
         self.analogico_esquerdo_y = self.joystick.get_axis(1)
+
+        # camera
+        self.analogico_direito_x  = self.joystick.get_axis(3)
+        self.analogico_direito_y  = self.joystick.get_axis(4)
 
         self.clock.tick(20)
