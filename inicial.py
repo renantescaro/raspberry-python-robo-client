@@ -1,5 +1,5 @@
-from joystick_class import Joystick
-from dados_class import Dados
+from joystick import Joystick
+from dados import Dados
 from socket_class import Socket
 
 _joystick = Joystick()
