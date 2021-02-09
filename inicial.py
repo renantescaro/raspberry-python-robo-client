@@ -1,5 +1,3 @@
-import socket
-import time
 from joystick_class import Joystick
 from dados_class import Dados
 from socket_class import Socket
@@ -34,11 +32,11 @@ while True:
     #### botoes ####
 
     # frente / tras
-    if _dados.motor_frente != _joystick.botao_1:
-        _dados.motor_frente = _joystick.botao_1
+    if _dados.motor_frente != _joystick.botao[0]:
+        _dados.motor_frente = _joystick.botao[0]
         enviar = True
-    if _dados.motor_tras != _joystick.botao_2:
-        _dados.motor_tras = _joystick.botao_2
+    if _dados.motor_tras != _joystick.botao[1]:
+        _dados.motor_tras = _joystick.botao[1]
         enviar = True
 
 
