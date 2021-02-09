@@ -1,51 +1,13 @@
-from joystick import Joystick
-from dados import Dados
-from socket_class import Socket
+from config import Config
+import rotina
+import interface_grafica.config_joystick as ig_config_joystick
+import interface_grafica.video_streaming as ig_video_streaming
 
-_joystick = Joystick()
-_socket   = Socket()
-_dados    = Dados()
-
-while True:
-    _joystick.verificar_comandos()
-    enviar = False
-
-    #### analogicos ####
-
-    # camera
-    if (_joystick.analogico_direito_y > 0.6 or _joystick.analogico_direito_y < -0.6):
-        _dados.camera_vertical = _joystick.analogico_direito_y
-        enviar = True
-    if (_joystick.analogico_direito_x > 0.6 or _joystick.analogico_direito_x < -0.6):
-        _dados.camera_horizontal = _joystick.analogico_direito_x
-        enviar = True
-
-    # direção esquerda / direita
-    if (_joystick.analogico_esquerdo_x > 0.6):
-        _dados.motor_esquerda = True
-        enviar = True
-    elif _joystick.analogico_esquerdo_x < -0.6:
-        _dados.motor_direita = True
-        enviar = True
-
-
-    #### botoes ####
-
-    # frente / tras
-    if _dados.motor_frente != _joystick.botao[0]:
-        _dados.motor_frente = _joystick.botao[0]
-        enviar = True
-    if _dados.motor_tras != _joystick.botao[1]:
-        _dados.motor_tras = _joystick.botao[1]
-        enviar = True
-
-
-    if enviar:
-        dados_bytes = str.encode( _dados.get() )
-        _socket.enviar(dados_bytes)
-        _dados.camera_vertical   = 0
-        _dados.camera_horizontal = 0
-        _dados.motor_esquerda    = False
-        _dados.motor_direita     = False
-
-    enviar = False
+if Config.arquivo_vazio():
+    # interface configuração de joystick
+    ig_config_joystick.iniciar()
+    pass
+else:
+    # rotina principal de envio de comandos por socket
+    rotina.iniciar()
+    #ig_video_streaming.iniciar()
