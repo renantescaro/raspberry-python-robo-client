@@ -1,6 +1,3 @@
-import os
+import interface_grafica.video_streaming as ig_video_streaming
 
-# os.environ['API_USER'] = 'username'
-# os.environ['API_PASSWORD'] = 'secret'
-
-print( os.environ['API_USER'] )
+ig_video_streaming.iniciar()
