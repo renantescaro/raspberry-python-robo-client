@@ -5,6 +5,7 @@ import cv2
 class VideoStreaming(tk.Frame):
     def __init__(self):
         self.master = tk.Tk()
+        self.master.title('Video Streaming')
         self.master.geometry('800x600')
         super().__init__(self.master)
         self.camera = cv2.VideoCapture('http://192.168.0.200:8080/?action=stream')

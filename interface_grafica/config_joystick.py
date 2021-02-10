@@ -93,6 +93,7 @@ class ConfigJoystick(tk.Frame):
 def iniciar():
     root = tk.Tk()
     root.geometry('500x300')
+    root.title('Configurar Joystick')
     app = ConfigJoystick(master=root)
 
     thread = threading.Thread( target=app.verificar )
