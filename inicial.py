@@ -1,5 +1,5 @@
-from config import Config
-from rotina import Rotina
+from classes.config import Config
+from classes.rotina import Rotina
 import interface_grafica.config_joystick as ig_config_joystick
 from interface_grafica.video_streaming import VideoStreaming
 

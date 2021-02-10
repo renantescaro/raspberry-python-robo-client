@@ -1,7 +1,7 @@
 import tkinter as tk
 import threading
-from joystick import Joystick
-from config import Config
+from classes.joystick import Joystick
+from classes.config import Config
 
 class ConfigJoystick(tk.Frame):
     def __init__(self, master=None):
