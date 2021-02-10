@@ -1,13 +1,13 @@
 from config import Config
-import rotina
+from rotina import Rotina
 import interface_grafica.config_joystick as ig_config_joystick
-import interface_grafica.video_streaming as ig_video_streaming
+from interface_grafica.video_streaming import VideoStreaming
 
 if Config.arquivo_vazio():
-    # interface configuração de joystick
+    # interface grafica configuração de joystick
     ig_config_joystick.iniciar()
     pass
 else:
     # rotina principal de envio de comandos por socket
-    rotina.iniciar()
-    #ig_video_streaming.iniciar()
+    Rotina().start()
+    VideoStreaming()
