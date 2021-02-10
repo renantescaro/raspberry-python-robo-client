@@ -1,3 +1,0 @@
-import interface_grafica.video_streaming as ig_video_streaming
-
-ig_video_streaming.iniciar()
