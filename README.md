@@ -4,3 +4,6 @@
 #### Dependencias
 * sudo apt-get install python3-tk
 * pip install pygame
+* pip install opencv-contrib-python
+* pip install Pillow
+* sudo apt-get install python3-pil python3-pil.imagetk
