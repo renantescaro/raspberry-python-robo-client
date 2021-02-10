@@ -2,10 +2,12 @@ from config import Config
 from joystick import Joystick
 from dados import Dados
 from socket_class import Socket
-import threading
+from threading import Thread
 
-class Rotina():
-    def __init__(self):
+class Rotina(Thread):
+    def __init__(self, **kwargs):
+        super(Rotina, self).__init__(**kwargs)
+
         self._joystick = Joystick()
         self._socket   = Socket()
         self._dados    = Dados()
@@ -18,7 +20,7 @@ class Rotina():
         self.cam_v_tipo, self.cam_v_porta           = Config.get('JOYSTICK_CAM_V').split('-')
         self.cam_h_tipo, self.cam_h_porta           = Config.get('JOYSTICK_CAM_H').split('-')
 
-    def preparar_envio_socket(self):
+    def run(self):
         while True:
             self._joystick.verificar_comandos()
             enviar = False
@@ -86,11 +88,3 @@ class Rotina():
                 self._dados.motor_esquerda    = False
                 self._dados.motor_direita     = False
             enviar = False
-
-
-def iniciar():
-    rotina = Rotina()
-    # rotina.preparar_envio_socket()
-    # thread = threading.Thread( target=rotina.preparar_envio_socket() )
-    # thread.daemon = True 
-    # thread.start()
