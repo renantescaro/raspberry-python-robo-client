@@ -13,33 +13,27 @@ class Joystick:
         self.joystick = pygame.joystick.Joystick(0)
         self.joystick.init()
 
-
     def verificar_comandos(self):
         self._verificar_botoes()
         self._verificar_analogicos()
-        
 
     def _verificar_botoes(self):
         for event in pygame.event.get():
             # down
-            if event.type == pygame.JOYBUTTONDOWN:
-                for b in range(len(self.botao)):
+            for b in range(len(self.botao)):
+                if event.type == pygame.JOYBUTTONDOWN:
                     if self.joystick.get_button(b):
                         self.botao[b] = True
-            # up
-            elif event.type == pygame.JOYBUTTONUP:
-                for b in range(len(self.botao)):
+                elif event.type == pygame.JOYBUTTONUP:
                     if int(event.button) == b:
                         self.botao[b] = False
-
 
     def _verificar_analogicos(self):
         for b in range(len(self.analogico)):
             self.analogico[b] = self.joystick.get_axis(b)
         self.clock.tick(20)
 
-
-    def get_botao_pressionado(self):
+    def pegar_botao_pressionado(self):
         # botoes
         for event in pygame.event.get():
             if event.type == pygame.JOYBUTTONDOWN:
