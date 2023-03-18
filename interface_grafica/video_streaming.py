@@ -8,10 +8,10 @@ class VideoStreaming(tk.Frame):
         # inicia janela
         self._largura_tela = 0
         self._altura_tela  = 0
-        self._get_resolucao()
+        self._pegar_resolucao()
         self.master = tk.Tk()
         self.master.title('Video Streaming')
-        self.master.geometry(str(self._largura_tela)+'x'+str(self._altura_tela))
+        self.master.geometry(f'{self._largura_tela}x{self._altura_tela}')
 
         super().__init__(self.master)
         self.camera  = cv2.VideoCapture( Config.get('STREAMING_URL') )
@@ -34,11 +34,11 @@ class VideoStreaming(tk.Frame):
         self.master.after(1, self.video_componente)
 
     
-    def _get_resolucao(self):
+    def _pegar_resolucao(self):
         resolucao = Config.get('resolucao')
-        if len(resolucao) == '':
+        if len(resolucao) == 0:
             self._largura_tela = 800
             self._altura_tela  = 600
         posicao_x = resolucao.find('x')
-        self._largura_tela = resolucao[0:posicao_x]
-        self._altura_tela  = resolucao[posicao_x+1:len(resolucao)]
+        self._largura_tela = resolucao[:posicao_x]
+        self._altura_tela = resolucao[posicao_x+1:]

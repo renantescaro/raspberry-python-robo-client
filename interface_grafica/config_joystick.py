@@ -10,15 +10,14 @@ class ConfigJoystick(tk.Frame):
         self.master = master
         self.grid()
         self.acelerador = tk.StringVar() 
-        self.re         = tk.StringVar()
-        self.esquerda   = tk.StringVar()
-        self.direita    = tk.StringVar()
-        self.cam_v      = tk.StringVar()
-        self.cam_h      = tk.StringVar()
+        self.re = tk.StringVar()
+        self.esquerda = tk.StringVar()
+        self.direita = tk.StringVar()
+        self.cam_v = tk.StringVar()
+        self.cam_h = tk.StringVar()
         self.criar_componentes()
         self.txt_acelerador.focus_set()
         self.atual = self.acelerador
-
 
     def criar_componentes(self):
         # acelerador
@@ -69,7 +68,6 @@ class ConfigJoystick(tk.Frame):
             command=self.salvar)
         self.btn_salvar.grid(row=7, column=1)
 
-
     def salvar(self):
         Config.limpar()
         Config.set('joystick_acelerador', self.acelerador.get())
@@ -79,16 +77,14 @@ class ConfigJoystick(tk.Frame):
         Config.set('joystick_cam_v'     , self.cam_v.get())
         Config.set('joystick_cam_h'     , self.cam_h.get())
 
-
     def verificar(self):
         while True:
-            num, tipo = self.joystick.get_botao_pressionado()
+            num, tipo = self.joystick.pegar_botao_pressionado()
             if num != -1:
                 conteudo_entry = self.master.focus_get().get()
                 if conteudo_entry == '':
-                    self.master.focus_get().insert(0, tipo+'-'+str(num))
+                    self.master.focus_get().insert(0, f'{tipo}-{str(num)}')
                     # root.focus_get().insert(0, str(num))
-
 
 def iniciar():
     root = tk.Tk()
