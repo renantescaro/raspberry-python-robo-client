@@ -10,4 +10,4 @@ if Config.arquivo_vazio():
 else:
     # rotina principal de envio de comandos por socket
     Rotina().run()
-    #VideoStreaming()
+    #VideoStreaming().executar()
