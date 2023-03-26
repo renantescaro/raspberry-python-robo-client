@@ -71,11 +71,11 @@ class ConfigJoystick(tk.Frame):
     def salvar(self):
         Config.limpar()
         Config.set('joystick_acelerador', self.acelerador.get())
-        Config.set('joystick_re'        , self.re.get())
-        Config.set('joystick_esquerda'  , self.esquerda.get())
-        Config.set('joystick_direita'   , self.direita.get())
-        Config.set('joystick_cam_v'     , self.cam_v.get())
-        Config.set('joystick_cam_h'     , self.cam_h.get())
+        Config.set('joystick_re', self.re.get())
+        Config.set('joystick_esquerda', self.esquerda.get())
+        Config.set('joystick_direita', self.direita.get())
+        Config.set('joystick_cam_v', self.cam_v.get())
+        Config.set('joystick_cam_h', self.cam_h.get())
 
     def verificar(self):
         while True:
@@ -92,7 +92,7 @@ def iniciar():
     root.title('Configurar Joystick')
     app = ConfigJoystick(master=root)
 
-    thread = threading.Thread( target=app.verificar )
+    thread = threading.Thread(target=app.verificar)
     thread.daemon = True 
     thread.start()
 

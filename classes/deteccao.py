@@ -1,7 +1,8 @@
 import cv2
+from config import Config
 
 # parametro 0 para webcam integrada / usb
-camera = cv2.VideoCapture('http://192.168.0.200:8080/?action=stream')
+camera = cv2.VideoCapture(Config.get('STREAMING_URL'))
 classificador = cv2.CascadeClassifier('xmls/haar_xml_07_19.xml')
 
 while (True):
