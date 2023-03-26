@@ -12,7 +12,7 @@ class Rotina:
 
     def run(self):
         while True:
-            self._joystick.verificar_comandos()
+            self._joystick.setar_comandos()
             enviar = False
 
             # acelerador

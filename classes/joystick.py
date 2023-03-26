@@ -1,3 +1,4 @@
+from typing import Tuple
 import pygame
 from classes.config import Config
 
@@ -23,29 +24,19 @@ class Joystick:
         self.joystick = pygame.joystick.Joystick(0)
         self.joystick.init()
 
-    def verificar_comandos(self):
+    def setar_comandos(self) -> None:
+        """
+        verifica comandos presionados no joystick e
+        seta os valores nas variaveis globais desta classe
+        """
         self._verificar_botoes()
         self._verificar_analogicos()
 
-    def _verificar_botoes(self):
-        for event in pygame.event.get():
-            for index_btn in range(len(self.botao)):
-                # down button
-                if event.type == pygame.JOYBUTTONDOWN:
-                    if self.joystick.get_button(index_btn):
-                        self.botao[index_btn] = True
-
-                # up button
-                elif event.type == pygame.JOYBUTTONUP:
-                    if int(event.button) == index_btn:
-                        self.botao[index_btn] = False
-
-    def _verificar_analogicos(self):
-        for b in range(len(self.analogico)):
-            self.analogico[b] = self.joystick.get_axis(b)
-        self.clock.tick(20)
-
-    def pegar_botao_pressionado(self):
+    def pegar_comando(self) -> Tuple[int, str]:
+        """
+        verifica comando presionado e retorna o valor
+        e a sua origem, se é botão ou analógico
+        """
         # botoes
         for event in pygame.event.get():
             if event.type == pygame.JOYBUTTONDOWN:
@@ -58,3 +49,21 @@ class Joystick:
             if (valor_analogico > 0.4 or valor_analogico < -0.4) and valor_analogico != -1:
                 return a, 'analogico'
         return -1, ''
+
+    def _verificar_botoes(self) -> None:
+        for event in pygame.event.get():
+            for index_btn in range(len(self.botao)):
+                # down button
+                if event.type == pygame.JOYBUTTONDOWN:
+                    if self.joystick.get_button(index_btn):
+                        self.botao[index_btn] = True
+
+                # up button
+                elif event.type == pygame.JOYBUTTONUP:
+                    if int(event.button) == index_btn:
+                        self.botao[index_btn] = False
+
+    def _verificar_analogicos(self) -> None:
+        for b in range(len(self.analogico)):
+            self.analogico[b] = self.joystick.get_axis(b)
+        self.clock.tick(20)

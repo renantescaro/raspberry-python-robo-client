@@ -1,4 +1,5 @@
 import os
+from typing import Any
 from dotenv import load_dotenv
 
 class Config:
@@ -17,6 +18,6 @@ class Config:
                 f.write(f'{str(hash).upper()}={str(valor)}\n')
 
     @staticmethod
-    def get(hash):
+    def get(hash:str, default: Any=None):
         load_dotenv()
-        return os.getenv(str(hash).upper())
+        return os.getenv(hash.upper()) | default

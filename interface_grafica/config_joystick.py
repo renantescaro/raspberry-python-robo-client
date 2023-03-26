@@ -79,7 +79,7 @@ class ConfigJoystick(tk.Frame):
 
     def verificar(self):
         while True:
-            num, tipo = self.joystick.pegar_botao_pressionado()
+            num, tipo = self.joystick.pegar_comando()
             if num != -1:
                 conteudo_entry = self.master.focus_get().get()
                 if conteudo_entry == '':
