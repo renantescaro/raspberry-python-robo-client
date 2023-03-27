@@ -20,4 +20,4 @@ class Config:
     @staticmethod
     def get(hash:str, default: Any=None):
         load_dotenv()
-        return os.getenv(hash.upper()) | default
+        return os.getenv(hash.upper()) or default
