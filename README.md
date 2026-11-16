@@ -1,31 +1,62 @@
+# raspberry-python-robo-client
+[![Testes](https://github.com/renantescaro/raspberry-python-robo-client/actions/workflows/tests.yml/badge.svg)](https://github.com/renantescaro/raspberry-python-robo-client/actions/workflows/tests.yml)
 
-### Projeto passando por refatoração
+Aplicação desktop (Windows e Linux) que controla o robô com Raspberry Pi
+([servidor](https://github.com/renantescaro/raspberry-python-robo-server)) usando um joystick.
 
-### Aplicação para desktop, responsavel por controlar robo com Raspberry Pi
+* envia comandos por socket TCP (protocolo binário de 4 bytes, apenas quando algo muda + heartbeat)
+* tela para mapear os botões/eixos do joystick
+* exibição do streaming de vídeo do robô, com detecção de rostos opcional
 
-#### Dependencias
-* sudo apt-get install python3-tk
-* pip install pygame
-* pip install opencv-contrib-python
-* pip install Pillow
-* pip install python-dotenv
-* sudo apt-get install python3-pil python3-pil.imagetk
+## Instalação
 
-## Configurações ⚙️
-* arquivo .env
-
-<br>
-
-## No Windows 🪟
-1 - Instalar todas as dependências
+Windows:
 ```bash
 python -m venv venv
 venv\Scripts\activate.bat
 pip install -r requirements.txt
 ```
 
-2 - Executar
+Linux:
 ```bash
-venv\Scripts\activate.bat
-python inicial.py
+sudo apt-get install python3-tk
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
+
+Atualizando um venv da versão antiga: remova antes os pacotes que conflitam
+(`pip uninstall pygame opencv-python Pillow`), pois `pygame-ce` e `opencv-contrib-python`
+usam os mesmos nomes de módulo.
+
+## Configuração ⚙️
+
+Copie `.env.example` para `.env` e defina ao menos `SERVER_HOST`.
+Arquivos `.env` da versão anterior (chaves em português) continuam funcionando.
+
+## Execução
+
+```bash
+python main.py                  # controle do robô (abre a configuração se faltar mapeamento)
+python main.py --configure      # remapear o joystick
+python main.py --video          # exibe o vídeo mesmo com VIDEO_ENABLED=false
+python main.py --test-joystick  # mostra os botões/eixos pressionados
+```
+
+Para testar sem o robô, rode o servidor em modo simulador: `python main.py --simulate`.
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest                                   # unitários, integração e contrato
+pytest tests/test_contract.py -v         # só o contrato do protocolo
+```
+
+Os testes de contrato validam o `protocol.py` contra `tests/contract/protocol_vectors.json`.
+Se o repositório `raspberry-python-robo-server` estiver clonado na pasta ao lado (ou em `PEER_REPO_DIR`),
+também testam a compatibilidade cruzada com ele. `tests/test_contract.py` e o arquivo de
+vetores devem ser **idênticos** nos dois repositórios.
+
+O GitHub Actions (`.github/workflows/tests.yml`) roda tudo a cada push na `master` e em pull requests;
+o job de contrato baixa o outro repositório na branch de mesmo nome (ou `master`).

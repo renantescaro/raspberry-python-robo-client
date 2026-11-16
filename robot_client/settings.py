@@ -1,0 +1,98 @@
+"""Configurações do cliente, lidas do arquivo .env na raiz do projeto."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv, set_key
+
+from .bindings import CONTROLS, Binding
+
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+ENV_FILE = PROJECT_DIR / ".env"
+FACE_CASCADE_FILE = PROJECT_DIR / "assets" / "haarcascade_face.xml"
+
+# Nomes antigos (em português) continuam aceitos para não quebrar .env existentes
+_LEGACY_KEYS = {
+    "SERVER_HOST": "SOCKET_IP",
+    "SERVER_PORT": "SOCKET_PORTA",
+    "AXIS_THRESHOLD": "SENSIBILIDADE_ANALOGICOS",
+    "VIDEO_SIZE": "RESOLUCAO",
+    **{control.key: control.legacy_key for control in CONTROLS},
+}
+
+
+def _raw(key: str) -> str | None:
+    value = os.getenv(key)
+    if value is None and key in _LEGACY_KEYS:
+        value = os.getenv(_LEGACY_KEYS[key])
+    if value is None or not value.strip():
+        return None
+    return value.strip()
+
+
+def _bool(key: str, default: bool) -> bool:
+    value = _raw(key)
+    return default if value is None else value.lower() in {"1", "true", "yes", "on", "sim"}
+
+
+def _size(key: str, default: tuple[int, int]) -> tuple[int, int]:
+    value = _raw(key)
+    if value is None:
+        return default
+    width, _, height = value.lower().partition("x")
+    return int(width), int(height)
+
+
+@dataclass(frozen=True)
+class Settings:
+    server_host: str | None
+    server_port: int
+    axis_threshold: float
+    heartbeat_s: float
+    joystick_index: int
+    bindings: dict[str, Binding]
+
+    video_enabled: bool
+    streaming_url: str | None
+    video_size: tuple[int, int]
+    video_rotate_180: bool
+    face_detection: bool
+
+    @property
+    def bindings_complete(self) -> bool:
+        return all(control.key in self.bindings for control in CONTROLS)
+
+
+def load_settings() -> Settings:
+    load_dotenv(ENV_FILE)
+
+    bindings: dict[str, Binding] = {}
+    for control in CONTROLS:
+        text = _raw(control.key)
+        if text:
+            bindings[control.key] = Binding.parse(text, control.legacy_direction)
+
+    return Settings(
+        server_host=_raw("SERVER_HOST"),
+        server_port=int(_raw("SERVER_PORT") or 5001),
+        axis_threshold=float(_raw("AXIS_THRESHOLD") or 0.4),
+        heartbeat_s=float(_raw("HEARTBEAT_S") or 0.25),
+        joystick_index=int(_raw("JOYSTICK_INDEX") or 0),
+        bindings=bindings,
+        video_enabled=_bool("VIDEO_ENABLED", False),
+        streaming_url=_raw("STREAMING_URL"),
+        video_size=_size("VIDEO_SIZE", (800, 600)),
+        video_rotate_180=_bool("VIDEO_ROTATE_180", True),
+        face_detection=_bool("FACE_DETECTION", False),
+    )
+
+
+def save_bindings(bindings: dict[str, Binding]) -> None:
+    """Grava o mapeamento do joystick preservando as demais chaves do .env."""
+    ENV_FILE.touch(exist_ok=True)
+    for key, binding in bindings.items():
+        set_key(str(ENV_FILE), key, str(binding), quote_mode="never")
+        os.environ[key] = str(binding)

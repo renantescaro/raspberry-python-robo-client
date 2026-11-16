@@ -1,0 +1,82 @@
+name: Testes
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Unitários e integração (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # O cliente precisa funcionar em Windows e Linux
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.14"]
+    env:
+      # pygame sem janela nem áudio reais
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Executar testes
+        run: pytest
+
+  contract:
+    name: Contrato com o servidor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Usa a branch de mesmo nome no servidor, se existir; senão a master
+      - name: Escolher branch do servidor
+        id: peer
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/renantescaro/raspberry-python-robo-server.git "$BRANCH" > /dev/null; then
+            echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=master" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Contrato verificado contra o servidor em: $(tail -n1 "$GITHUB_OUTPUT")"
+
+      - uses: actions/checkout@v5
+        with:
+          repository: renantescaro/raspberry-python-robo-server
+          ref: ${{ steps.peer.outputs.ref }}
+          path: .peer
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      # O contrato só depende da biblioteca padrão + python-dotenv (conftest)
+      - name: Instalar dependências
+        run: pip install python-dotenv -r requirements-dev.txt
+
+      - name: Executar testes de contrato
+        run: pytest tests/test_contract.py -v
+        env:
+          PEER_REPO_DIR: .peer
+          REQUIRE_PEER: "1"
