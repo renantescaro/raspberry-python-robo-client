@@ -15,3 +15,7 @@ build/
 
 *.env
 .env
+
+# Modelo de detecção baixado na primeira execução
+assets/*.onnx
+assets/*.part

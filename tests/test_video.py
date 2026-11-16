@@ -11,8 +11,8 @@ import pytest
 cv2 = pytest.importorskip("cv2")
 np = pytest.importorskip("numpy")
 
-from robot_client.settings import FACE_CASCADE_FILE  # noqa: E402
-from robot_client.video import VideoFeed, _detect_faces, fit_size  # noqa: E402
+from robot_client.detection import Detection  # noqa: E402
+from robot_client.video import VideoFeed, fit_size  # noqa: E402
 
 
 def make_test_frame():
@@ -57,8 +57,8 @@ def mjpeg_server():
 def run_feed():
     feeds = []
 
-    def start(url, area=(640, 480), rotate=False, on_frame=None):
-        feed = VideoFeed(url, area, rotate, on_frame=on_frame)
+    def start(url, area=(640, 480), rotate=False, on_frame=None, detector_factory=None):
+        feed = VideoFeed(url, area, rotate, detector_factory, on_frame=on_frame)
         feed.start()
         feeds.append(feed)
         return feed
@@ -119,27 +119,18 @@ def test_unreachable_stream_keeps_retrying_and_stops(run_feed, wait):
     assert not feed.is_alive()  # stop() interrompe a espera de reconexão
 
 
-# ------------------------------------------------------------- detecção de rosto
+def test_draws_detections_on_frames(mjpeg_server, run_feed, wait):
+    class FakeDetector:
+        calls = 0
 
+        def detect(self, frame):
+            FakeDetector.calls += 1
+            assert frame.shape == (480, 640, 3)  # recebe o quadro original
+            return [Detection("dog", 0.9, (300, 300, 100, 100))]
 
-@pytest.fixture(scope="module")
-def classifier():
-    assert hasattr(cv2, "CascadeClassifier"), "instale opencv-contrib-python (OpenCV 5 removeu do pacote base)"
-    clf = cv2.CascadeClassifier(str(FACE_CASCADE_FILE))
-    assert not clf.empty(), f"falha ao carregar {FACE_CASCADE_FILE}"
-    return clf
-
-
-def test_blank_frame_has_no_faces(classifier):
-    assert _detect_faces(cv2, classifier, np.zeros((480, 640, 3), dtype=np.uint8)) == []
-
-
-def test_detections_are_scaled_back_to_frame():
-    class FakeClassifier:
-        def detectMultiScale(self, gray, scaleFactor, minSize):
-            assert gray.shape == (240, 320)  # imagem reduzida pela metade
-            assert minSize == (50, 50)
-            return [(10, 20, 30, 40)]
-
-    frame = np.zeros((480, 640, 3), dtype=np.uint8)
-    assert _detect_faces(cv2, FakeClassifier(), frame) == [(20, 40, 60, 80)]
+    feed = run_feed(mjpeg_server, detector_factory=FakeDetector)
+    assert wait(lambda: feed.latest()[0] >= 4, timeout=10)
+    frame = feed.latest()[1]
+    assert tuple(frame[350, 300]) == (0, 220, 0)  # borda verde do "cachorro"
+    assert frame[350, 350].mean() < 50  # interior da caixa intacto
+    assert FakeDetector.calls < feed.latest()[0]  # não detecta em todo quadro

@@ -1,5 +1,7 @@
 import os
 
+import pytest
+
 from robot_client.bindings import Binding
 from robot_client.settings import DEFAULT_KEYS, load_settings, save_bindings
 
@@ -36,7 +38,8 @@ def test_defaults(env_file):
     assert s.axis_threshold == 0.4
     assert s.heartbeat_s == 0.25
     assert s.video_size == (800, 600)
-    assert not s.video_enabled and s.video_rotate_180 and not s.face_detection
+    assert not s.video_enabled and s.video_rotate_180
+    assert s.detect == () and s.detect_confidence == 0.5
     assert s.bindings == {}
     assert not s.bindings_complete
 
@@ -61,10 +64,28 @@ def test_new_keys_win_over_legacy(env_file):
 
 
 def test_video_flags(env_file):
-    env_file.write_text("VIDEO_ENABLED=true\nVIDEO_ROTATE_180=false\nFACE_DETECTION=1\nVIDEO_SIZE=640X480\n")
+    env_file.write_text("VIDEO_ENABLED=true\nVIDEO_ROTATE_180=false\nVIDEO_SIZE=640X480\n")
     s = load_settings()
-    assert s.video_enabled and not s.video_rotate_180 and s.face_detection
+    assert s.video_enabled and not s.video_rotate_180
     assert s.video_size == (640, 480)
+
+
+def test_detect_targets(env_file):
+    env_file.write_text("DETECT= Cat, dog ,cat\nDETECT_CONFIDENCE=0.3\n", encoding="utf-8")
+    s = load_settings()
+    assert s.detect == ("cat", "dog")  # normalizado e sem repetidos
+    assert s.detect_confidence == 0.3
+
+
+def test_legacy_face_detection_adds_face(env_file):
+    env_file.write_text("FACE_DETECTION=1\nDETECT=dog\n", encoding="utf-8")
+    assert load_settings().detect == ("face", "dog")
+
+
+def test_unknown_detect_target_is_an_error(env_file):
+    env_file.write_text("DETECT=cat,unicorn\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="unicorn"):
+        load_settings()
 
 
 def test_save_bindings_preserves_other_keys(env_file):

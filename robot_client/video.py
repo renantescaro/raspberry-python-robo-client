@@ -1,6 +1,7 @@
 """Leitura do vídeo do robô (MJPEG por HTTP) em uma thread.
 
-A thread lê, decodifica, gira, redimensiona e (opcionalmente) detecta rostos.
+A thread lê, decodifica, gira, redimensiona e (opcionalmente) detecta rostos,
+pessoas e animais (detection.py).
 Essas operações do OpenCV rodam em C e liberam o GIL, então não atrasam o loop
 de controle. Só o quadro mais recente é guardado (menor latência possível); a
 janela (control_window.py) apenas o desenha.
@@ -11,8 +12,8 @@ from __future__ import annotations
 import threading
 from typing import Callable
 
-FACE_DETECTION_EVERY_N_FRAMES = 3
-FACE_DETECTION_SCALE = 0.5  # detecta em imagem reduzida (bem mais rápido)
+# Detecta a cada N quadros; nos intermediários repete as últimas caixas
+DETECTION_EVERY_N_FRAMES = 2
 RECONNECT_DELAY_S = 1.0
 # Limites de abertura/leitura do stream: sem eles uma conexão travada prende a thread
 STREAM_TIMEOUT_MS = 3000
@@ -26,25 +27,13 @@ def fit_size(frame_size: tuple[int, int], area: tuple[int, int]) -> tuple[int, i
     return max(1, round(width * scale)), max(1, round(height * scale))
 
 
-def _detect_faces(cv2, classifier, frame) -> list[tuple[int, int, int, int]]:
-    small = cv2.resize(frame, None, fx=FACE_DETECTION_SCALE, fy=FACE_DETECTION_SCALE)
-    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-    min_size = int(100 * FACE_DETECTION_SCALE)
-    detected = classifier.detectMultiScale(gray, scaleFactor=1.5, minSize=(min_size, min_size))
-    inverse = 1 / FACE_DETECTION_SCALE
-    return [
-        (int(x * inverse), int(y * inverse), int(w * inverse), int(h * inverse))
-        for x, y, w, h in detected
-    ]
-
-
 class VideoFeed(threading.Thread):
     def __init__(
         self,
         source: str,
         area: tuple[int, int],
         rotate_180: bool,
-        face_cascade_path: str | None = None,
+        detector_factory: Callable[[], object | None] | None = None,
         on_frame: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(name="video", daemon=True)
@@ -52,7 +41,8 @@ class VideoFeed(threading.Thread):
         self._source: str | int = int(source) if source.isdigit() else source
         self._area = area
         self._rotate_180 = rotate_180
-        self._face_cascade_path = face_cascade_path
+        # Chamada já dentro da thread: carregar/baixar o modelo não trava a janela
+        self._detector_factory = detector_factory
         self._on_frame = on_frame
         self._lock = threading.Lock()
         self._frame = None
@@ -71,8 +61,10 @@ class VideoFeed(threading.Thread):
     def run(self) -> None:
         import cv2
 
-        classifier = self._load_classifier(cv2)
-        faces: list[tuple[int, int, int, int]] = []
+        detector = self._detector_factory() if self._detector_factory else None
+        if detector is not None:
+            from .detection import draw_detections
+        detections: list = []
         count = 0
         while not self._stop_event.is_set():
             capture = self._open(cv2)
@@ -86,12 +78,11 @@ class VideoFeed(threading.Thread):
                 self.connected = True
                 if self._rotate_180:
                     frame = cv2.rotate(frame, cv2.ROTATE_180)
-                if classifier is not None:
-                    if count % FACE_DETECTION_EVERY_N_FRAMES == 0:
-                        faces = _detect_faces(cv2, classifier, frame)
+                if detector is not None:
+                    if count % DETECTION_EVERY_N_FRAMES == 0:
+                        detections = detector.detect(frame)
                     count += 1
-                    for x, y, w, h in faces:
-                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                    draw_detections(frame, detections)
                 height, width = frame.shape[:2]
                 size = fit_size((width, height), self._area)
                 if size != (width, height):
@@ -123,12 +114,3 @@ class VideoFeed(threading.Thread):
     def _wait_reconnect(self) -> None:
         self.connected = False
         self._stop_event.wait(RECONNECT_DELAY_S)  # interrompido na hora por stop()
-
-    def _load_classifier(self, cv2):
-        if not self._face_cascade_path:
-            return None
-        classifier = cv2.CascadeClassifier(self._face_cascade_path)
-        if classifier.empty():
-            print(f"Classificador não carregado: {self._face_cascade_path}")
-            return None
-        return classifier

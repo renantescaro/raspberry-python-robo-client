@@ -37,7 +37,8 @@ BASE_SETTINGS = Settings(
     streaming_url=None,
     video_size=(800, 600),
     video_rotate_180=True,
-    face_detection=False,
+    detect=(),
+    detect_confidence=0.5,
 )
 
 
