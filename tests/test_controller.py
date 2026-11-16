@@ -63,9 +63,12 @@ class Receiver:
                 self.data += chunk
         self.closed.set()
 
-    def packets(self) -> list[protocol.ControlState]:
+    def packets(self) -> list[protocol.ControlState | protocol.Command]:
         size = protocol.PACKET_SIZE
-        return [protocol.decode(self.data, i) for i in range(0, len(self.data) - size + 1, size)]
+        return [protocol.decode_packet(self.data, i) for i in range(0, len(self.data) - size + 1, size)]
+
+    def commands(self) -> list[protocol.Command]:
+        return [p for p in self.packets() if isinstance(p, protocol.Command)]
 
 
 def test_requires_server_host():
@@ -155,3 +158,60 @@ def test_sends_heartbeats_and_stops_on_quit(wait):
     assert all(state == protocol.ControlState() for state in packets)
     # Ao sair, o último pacote enviado é o de parada
     assert packets[-1] == protocol.ControlState()
+
+
+def click(pos) -> None:
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos))
+
+
+@pytest.fixture
+def keyboard_client(wait, monkeypatch):
+    """Cliente só com teclado (com janela) conectado a um Receiver."""
+    # Nada pressionado
+    monkeypatch.setattr(
+        pygame.key, "get_pressed", lambda: type("P", (), {"__getitem__": lambda s, k: False})()
+    )
+    receiver = Receiver()
+    settings = replace(BASE_SETTINGS, server_port=receiver.port, bindings={}, keyboard_enabled=True)
+    thread, errors = start_controller(settings)
+    assert wait(lambda: len(receiver.packets()) >= 1, timeout=3)
+    yield receiver
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    thread.join(timeout=5)
+    assert not errors, errors
+    assert not thread.is_alive()
+
+
+def button_center() -> tuple[int, int]:
+    from robot_client.control_window import BUTTON_SIZE, PADDING, STATUS_ONLY_SIZE
+
+    return STATUS_ONLY_SIZE[0] - PADDING - BUTTON_SIZE[0] // 2, PADDING + BUTTON_SIZE[1] // 2
+
+
+def test_shutdown_needs_confirmation_click(keyboard_client, wait):
+    receiver = keyboard_client
+    click(button_center())
+    time.sleep(0.3)
+    assert receiver.commands() == []  # um clique só pede confirmação
+    click(button_center())
+    assert wait(lambda: receiver.commands() == [protocol.Command(protocol.SHUTDOWN)], timeout=3)
+
+
+def test_shutdown_confirmation_expires(keyboard_client, wait, monkeypatch):
+    from robot_client import controller
+
+    monkeypatch.setattr(controller, "SHUTDOWN_CONFIRM_S", 0.2)
+    receiver = keyboard_client
+    click(button_center())
+    time.sleep(0.6)  # passa do prazo (o loop acorda a cada heartbeat de 0.1 s)
+    click(button_center())  # vira um novo pedido de confirmação, não um envio
+    time.sleep(0.3)
+    assert receiver.commands() == []
+
+
+def test_click_outside_button_does_nothing(keyboard_client):
+    receiver = keyboard_client
+    click((10, 140))
+    click((10, 140))
+    time.sleep(0.3)
+    assert receiver.commands() == []

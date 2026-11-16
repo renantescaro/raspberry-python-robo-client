@@ -68,7 +68,7 @@ def test_frame_is_shown_with_correct_colors():
     window.set_frame(solid_bgr(320, 240, (255, 0, 0)))  # azul em BGR
     assert window.draw()
     # Acima do painel de status, o pixel deve ser azul (BGR convertido certo)
-    assert pygame.display.get_surface().get_at((160, 20))[:3] == (0, 0, 255)
+    assert pygame.display.get_surface().get_at((60, 20))[:3] == (0, 0, 255)  # fora do botão
 
 
 def test_smaller_frame_is_centered_with_black_bars():
@@ -100,3 +100,58 @@ def test_status_panel_overlays_bottom_of_video():
     bottom = screen.get_at((300, 235))[:3]
     assert top == (255, 255, 255)
     assert sum(bottom) < sum(top)  # painel translúcido escurece o rodapé
+
+
+# ---------------------------------------------------------------- botão desligar
+
+from robot_client.control_window import (  # noqa: E402
+    SHUTDOWN_CONFIRM,
+    SHUTDOWN_IDLE,
+    SHUTDOWN_SENT,
+)
+
+
+def test_button_is_in_top_right_corner():
+    window = ControlWindow(HELP, (640, 360))
+    rect = window.button_rect
+    assert rect.right <= 640 and rect.right > 600
+    assert rect.top < 20
+    assert window.button_hit(rect.center)
+    assert not window.button_hit((10, 10))
+
+
+def button_color(window: ControlWindow):
+    # Canto interno do botão (fora do texto)
+    return pygame.display.get_surface().get_at((window.button_rect.left + 4, window.button_rect.centery))[:3]
+
+
+def test_button_states_change_color():
+    window = ControlWindow(HELP)
+    window.set_shutdown_button(SHUTDOWN_IDLE, True)
+    window.draw(force=True)
+    idle = button_color(window)
+    window.set_shutdown_button(SHUTDOWN_CONFIRM, True)
+    assert window.draw()  # mudança de estado redesenha
+    confirm = button_color(window)
+    assert confirm == (200, 50, 50)  # vermelho de confirmação
+    window.set_shutdown_button(SHUTDOWN_SENT, True)
+    window.draw()
+    assert button_color(window) not in (idle, confirm)
+
+
+def test_button_disabled_without_connection():
+    window = ControlWindow(HELP)
+    window.set_shutdown_button(SHUTDOWN_IDLE, True)
+    window.draw(force=True)
+    enabled = button_color(window)
+    window.set_shutdown_button(SHUTDOWN_IDLE, False)
+    assert window.draw()
+    assert button_color(window) != enabled
+
+
+def test_same_button_state_does_not_redraw():
+    window = ControlWindow(HELP)
+    window.set_shutdown_button(SHUTDOWN_IDLE, True)
+    window.draw(force=True)
+    window.set_shutdown_button(SHUTDOWN_IDLE, True)
+    assert not window.draw()

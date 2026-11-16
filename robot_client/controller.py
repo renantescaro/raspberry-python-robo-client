@@ -8,13 +8,15 @@ import pygame
 
 from . import protocol
 from .connection import RobotConnection
-from .control_window import ControlWindow
+from .control_window import SHUTDOWN_CONFIRM, SHUTDOWN_IDLE, SHUTDOWN_SENT, ControlWindow
 from .joystick import JoystickDevice, StateReader, init_pygame
 from .keyboard import KeyMap, keymap_help, merge_states, read_keyboard
 from .settings import FACE_CASCADE_FILE, Settings
 
 # Evento postado pela thread de vídeo a cada quadro novo (acorda o loop)
 FRAME_EVENT = pygame.event.custom_type()
+# Tempo para o segundo clique confirmar o desligamento
+SHUTDOWN_CONFIRM_S = 3.0
 
 
 def _post_frame_event() -> None:
@@ -75,6 +77,9 @@ def run_controller(settings: Settings) -> None:
     last_sent: protocol.ControlState | None = None
     last_send_time = 0.0
     shown_frame_id = 0
+    shutdown_state = SHUTDOWN_IDLE
+    confirm_deadline = 0.0
+    shutdown_lost_connection = False
 
     try:
         while True:
@@ -89,6 +94,22 @@ def run_controller(settings: Settings) -> None:
                     return
                 if event.type == pygame.WINDOWEXPOSED:
                     redraw = True
+                if (
+                    event.type == pygame.MOUSEBUTTONDOWN
+                    and event.button == 1
+                    and window is not None
+                    and window.button_hit(event.pos)
+                    and connection.connected
+                ):
+                    if shutdown_state == SHUTDOWN_IDLE:
+                        shutdown_state = SHUTDOWN_CONFIRM
+                        confirm_deadline = time.monotonic() + SHUTDOWN_CONFIRM_S
+                    elif shutdown_state == SHUTDOWN_CONFIRM:
+                        if connection.send(protocol.encode_command(protocol.SHUTDOWN)):
+                            print("Desligamento do robô enviado")
+                            shutdown_state = SHUTDOWN_SENT
+                        else:
+                            shutdown_state = SHUTDOWN_IDLE
                 if device is not None:
                     device.handle_event(event)
 
@@ -99,6 +120,15 @@ def run_controller(settings: Settings) -> None:
                 state = merge_states(state, read_keyboard(pygame.key.get_pressed(), keymap))
 
             now = time.monotonic()
+            if shutdown_state == SHUTDOWN_CONFIRM and now >= confirm_deadline:
+                shutdown_state = SHUTDOWN_IDLE  # não confirmou a tempo
+            elif shutdown_state == SHUTDOWN_SENT:
+                # Depois que o robô cai e volta (religado), o botão volta ao normal
+                if not connection.connected:
+                    shutdown_lost_connection = True
+                elif shutdown_lost_connection:
+                    shutdown_state = SHUTDOWN_IDLE
+                    shutdown_lost_connection = False
             if state != last_sent or now - last_send_time >= heartbeat:
                 # Em caso de falha, last_sent=None força o reenvio no próximo ciclo
                 last_sent = state if connection.send(protocol.encode(state)) else None
@@ -119,6 +149,7 @@ def run_controller(settings: Settings) -> None:
                     state,
                     feed.connected if feed is not None else None,
                 )
+                window.set_shutdown_button(shutdown_state, connection.connected)
                 window.draw(force=redraw)
     finally:
         if feed is not None:
