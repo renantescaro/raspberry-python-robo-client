@@ -1,4 +1,4 @@
-"""Loop principal: lê joystick e teclado e envia o estado ao robô."""
+"""Loop principal: lê joystick e teclado, envia o estado ao robô e mostra o vídeo."""
 
 from __future__ import annotations
 
@@ -8,10 +8,20 @@ import pygame
 
 from . import protocol
 from .connection import RobotConnection
+from .control_window import ControlWindow
 from .joystick import JoystickDevice, StateReader, init_pygame
 from .keyboard import KeyMap, keymap_help, merge_states, read_keyboard
-from .settings import Settings
-from .status_window import StatusWindow
+from .settings import FACE_CASCADE_FILE, Settings
+
+# Evento postado pela thread de vídeo a cada quadro novo (acorda o loop)
+FRAME_EVENT = pygame.event.custom_type()
+
+
+def _post_frame_event() -> None:
+    try:
+        pygame.event.post(pygame.event.Event(FRAME_EVENT))
+    except pygame.error:
+        pass  # pygame já encerrado durante a saída
 
 
 def run_controller(settings: Settings) -> None:
@@ -20,7 +30,11 @@ def run_controller(settings: Settings) -> None:
     if not settings.bindings_complete and not settings.keyboard_enabled:
         raise SystemExit("Configure o joystick (--configure) ou habilite KEYBOARD_ENABLED")
 
-    init_pygame(keyboard=settings.keyboard_enabled)
+    video_enabled = settings.video_enabled and bool(settings.streaming_url)
+    if settings.video_enabled and not settings.streaming_url:
+        print("Defina STREAMING_URL no arquivo .env para exibir o vídeo")
+    has_window = settings.keyboard_enabled or video_enabled
+    init_pygame(window=has_window, extra_events=(FRAME_EVENT,))
 
     # Joystick só é usado se estiver mapeado
     reader: StateReader | None = None
@@ -32,11 +46,27 @@ def run_controller(settings: Settings) -> None:
             print("Aguardando joystick...")
 
     keymap: KeyMap | None = None
-    window: StatusWindow | None = None
     if settings.keyboard_enabled:
         keymap = KeyMap.from_names(settings.key_bindings)
-        window = StatusWindow(keymap_help(settings.key_bindings))
         print("Controle pelo teclado: mantenha a janela 'Controle do robô' em foco")
+
+    window: ControlWindow | None = None
+    if has_window:
+        help_lines = keymap_help(settings.key_bindings) if keymap is not None else ["Esc sai"]
+        window = ControlWindow(help_lines, settings.video_size if video_enabled else None)
+
+    feed = None
+    if video_enabled:
+        from .video import VideoFeed  # importa o OpenCV só quando há vídeo
+
+        feed = VideoFeed(
+            settings.streaming_url,
+            window.size,
+            settings.video_rotate_180,
+            str(FACE_CASCADE_FILE) if settings.face_detection else None,
+            on_frame=_post_frame_event,
+        )
+        feed.start()
 
     server = f"{settings.server_host}:{settings.server_port}"
     connection = RobotConnection(settings.server_host, settings.server_port)
@@ -44,10 +74,11 @@ def run_controller(settings: Settings) -> None:
     heartbeat = settings.heartbeat_s
     last_sent: protocol.ControlState | None = None
     last_send_time = 0.0
+    shown_frame_id = 0
 
     try:
         while True:
-            # Bloqueia até chegar um evento ou vencer o heartbeat: sem polling
+            # Bloqueia até chegar um evento (joystick, teclado, quadro) ou vencer o heartbeat
             wait_ms = max(1, int((last_send_time + heartbeat - time.monotonic()) * 1000))
             events = [pygame.event.wait(wait_ms), *pygame.event.get()]
             redraw = False
@@ -74,15 +105,24 @@ def run_controller(settings: Settings) -> None:
                 last_send_time = now
 
             if window is not None:
+                if feed is not None:
+                    # Vários avisos acumulados resultam em um só desenho do quadro mais novo
+                    frame_id, frame = feed.latest()
+                    if frame is not None and frame_id != shown_frame_id:
+                        shown_frame_id = frame_id
+                        window.set_frame(frame)
                 joystick = device.joystick if device is not None else None
-                window.update(
+                window.set_status(
                     connection.connected,
                     server,
                     joystick.get_name() if joystick is not None else None,
                     state,
-                    force=redraw,
+                    feed.connected if feed is not None else None,
                 )
+                window.draw(force=redraw)
     finally:
+        if feed is not None:
+            feed.stop()
         # Tenta parar o robô antes de sair
         if connection.connected:
             connection.send(protocol.encode(protocol.ControlState()))

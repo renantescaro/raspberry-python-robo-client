@@ -32,13 +32,17 @@ KEYBOARD_EVENTS = (
 )
 
 
-def init_pygame(keyboard: bool = False) -> None:
-    """Inicializa só o necessário (sem áudio) e filtra a fila de eventos."""
+def init_pygame(window: bool = False, extra_events: tuple[int, ...] = ()) -> None:
+    """Inicializa só o necessário (sem áudio) e filtra a fila de eventos.
+
+    `window`: libera os eventos de teclado/janela (janela "Controle do robô").
+    `extra_events`: tipos personalizados, como o aviso de quadro novo do vídeo.
+    """
     pygame.display.init()
     pygame.joystick.init()
     pygame.event.set_blocked(None)
-    allowed = [*JOYSTICK_EVENTS, pygame.QUIT]
-    if keyboard:
+    allowed = [*JOYSTICK_EVENTS, pygame.QUIT, *extra_events]
+    if window:
         allowed += KEYBOARD_EVENTS
     pygame.event.set_allowed(allowed)
 

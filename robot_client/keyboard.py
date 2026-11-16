@@ -1,7 +1,7 @@
 """Controle do robô pelo teclado.
 
 O pygame só recebe o teclado com uma janela própria em foco, por isso o
-controle por teclado vem junto com a janela de status (status_window.py).
+controle por teclado vem junto com a janela "Controle do robô" (control_window.py).
 Ao perder o foco o SDL zera o estado das teclas, então o robô para sozinho.
 """
 

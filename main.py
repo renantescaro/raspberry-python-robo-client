@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 
-from robot_client.settings import FACE_CASCADE_FILE, load_settings
+from robot_client.settings import load_settings
 
 
 def parse_args() -> argparse.Namespace:
@@ -14,7 +15,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--test-joystick", action="store_true", help="mostra os botões/eixos pressionados"
     )
-    parser.add_argument("--video", action="store_true", help="força a exibição do vídeo")
+    parser.add_argument("--video", action="store_true", help="mostra o vídeo mesmo com VIDEO_ENABLED=false")
     return parser.parse_args()
 
 
@@ -38,18 +39,8 @@ def main() -> int:
     elif not settings.bindings_complete:
         print("Joystick não configurado (use --configure); controlando só pelo teclado.")
 
-    video_process = None
-    if (settings.video_enabled or args.video) and settings.streaming_url:
-        from robot_client.video import start_video_process
-
-        video_process = start_video_process(
-            settings.streaming_url,
-            settings.video_size,
-            settings.video_rotate_180,
-            str(FACE_CASCADE_FILE) if settings.face_detection else None,
-        )
-    elif args.video:
-        print("Defina STREAMING_URL no arquivo .env para exibir o vídeo")
+    if args.video:
+        settings = replace(settings, video_enabled=True)
 
     from robot_client.controller import run_controller
 
@@ -57,9 +48,6 @@ def main() -> int:
         run_controller(settings)
     except KeyboardInterrupt:
         pass
-    finally:
-        if video_process is not None and video_process.is_alive():
-            video_process.terminate()
     return 0
 
 

@@ -4,7 +4,6 @@ import pytest
 from robot_client import protocol
 from robot_client.keyboard import KeyMap, keymap_help, merge_states, read_keyboard
 from robot_client.settings import DEFAULT_KEYS
-from robot_client.status_window import StatusWindow, describe_state
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -102,30 +101,3 @@ def test_keymap_help_lists_configured_keys():
     lines = keymap_help(DEFAULT_KEYS)
     assert "frente W/up" in lines[0]
     assert "Esc" in lines[1]
-
-
-@pytest.mark.parametrize(
-    ("state", "text"),
-    [
-        (protocol.ControlState(), "parado"),
-        (protocol.ControlState(protocol.FORWARD | protocol.LEFT, 0, 0), "frente + esquerda"),
-        (protocol.ControlState(0, -1, 1), "câmera cima/direita"),
-        (protocol.ControlState(protocol.BACKWARD, 1, 0), "ré + câmera baixo"),
-    ],
-)
-def test_describe_state(state, text):
-    assert describe_state(state) == text
-
-
-def test_status_window_renders_only_on_change(monkeypatch):
-    flips = []
-    window = StatusWindow(keymap_help(DEFAULT_KEYS))
-    monkeypatch.setattr(pygame.display, "flip", lambda: flips.append(1))
-    state = protocol.ControlState(protocol.FORWARD, 0, 0)
-    window.update(True, "robo:5001", "Gamepad", state)
-    window.update(True, "robo:5001", "Gamepad", state)
-    assert len(flips) == 1
-    window.update(False, "robo:5001", "Gamepad", state)
-    window.update(False, "robo:5001", "Gamepad", state, force=True)
-    assert len(flips) == 3
-    assert pygame.display.get_caption()[0] == "Controle do robô"
