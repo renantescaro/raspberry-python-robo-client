@@ -45,7 +45,8 @@ BASE_SETTINGS = Settings(
 class Receiver:
     """Servidor TCP mínimo que acumula os bytes recebidos."""
 
-    def __init__(self) -> None:
+    def __init__(self, greeting: bytes = b"") -> None:
+        self.greeting = greeting  # enviado ao cliente logo após conectar (telemetria)
         self.server = socket.create_server(("127.0.0.1", 0))
         self.server.settimeout(5)
         self.data = bytearray()
@@ -60,6 +61,7 @@ class Receiver:
     def _run(self) -> None:
         connection, _ = self.server.accept()
         with connection:
+            connection.sendall(self.greeting)
             while chunk := connection.recv(64):
                 self.data += chunk
         self.closed.set()
@@ -216,3 +218,25 @@ def test_click_outside_button_does_nothing(keyboard_client):
     click((10, 140))
     time.sleep(0.3)
     assert receiver.commands() == []
+
+
+def test_shows_robot_wifi_from_telemetry(wait, monkeypatch):
+    from robot_client.control_window import ControlWindow
+
+    shown = []
+    original = ControlWindow.set_status
+
+    def spy(self, *args, **kwargs):
+        shown.append(kwargs.get("wifi", args[5] if len(args) > 5 else None))
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(ControlWindow, "set_status", spy)
+    receiver = Receiver(greeting=protocol.encode_telemetry(protocol.Telemetry(91, -46)))
+    settings = replace(BASE_SETTINGS, server_port=receiver.port, bindings={}, keyboard_enabled=True)
+    thread, errors = start_controller(settings)
+    try:
+        assert wait(lambda: protocol.Telemetry(91, -46) in shown, timeout=3)
+    finally:
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+        thread.join(timeout=5)
+    assert not errors, errors

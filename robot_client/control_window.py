@@ -12,13 +12,14 @@ import pygame
 
 from . import protocol
 
-STATUS_ONLY_SIZE = (520, 150)
+STATUS_ONLY_SIZE = (520, 175)
 BACKGROUND = (12, 13, 16)
 PANEL = (0, 0, 0, 150)
 TEXT = (230, 232, 236)
 MUTED = (170, 176, 188)
 OK = (110, 200, 120)
 WARN = (235, 170, 80)
+BAD = (235, 95, 85)
 LINE_HEIGHT = 24
 PADDING = 12
 
@@ -56,6 +57,24 @@ def describe_state(state: protocol.ControlState) -> str:
     return " + ".join(parts) if parts else "parado"
 
 
+# Faixas de qualidade do Wi-Fi: (mínimo em %, nome, cor)
+_WIFI_LEVELS = ((70, "ótimo", OK), (50, "bom", OK), (30, "fraco", WARN), (0, "ruim", BAD))
+
+
+def describe_wifi(telemetry: protocol.Telemetry | None) -> tuple[str, tuple[int, int, int]]:
+    """Linha do painel com a qualidade do Wi-Fi do robô."""
+    if telemetry is None:
+        return "Wi-Fi do robô: sem dados", MUTED  # servidor antigo ou ainda sem leitura
+    quality, dbm = telemetry
+    if quality is None and dbm is not None:
+        quality = min(100, max(0, 2 * (dbm + 100)))  # aproximação usual a partir do dBm
+    if quality is None:
+        return "Wi-Fi do robô: desconhecido", MUTED
+    name, color = next((name, color) for minimum, name, color in _WIFI_LEVELS if quality >= minimum)
+    signal = f" ({dbm} dBm)" if dbm is not None else ""
+    return f"Wi-Fi do robô: {quality}%{signal} - {name}", color
+
+
 class ControlWindow:
     def __init__(self, help_lines: list[str], video_size: tuple[int, int] | None = None) -> None:
         self.video_enabled = video_size is not None
@@ -91,8 +110,9 @@ class ControlWindow:
         joystick_name: str | None,
         state: protocol.ControlState,
         video_connected: bool | None = None,
+        wifi: protocol.Telemetry | None = None,
     ) -> None:
-        key = (connected, server, joystick_name, state, video_connected)
+        key = (connected, server, joystick_name, state, video_connected, wifi)
         if key == self._status_key:
             return
         self._status_key = key
@@ -103,6 +123,8 @@ class ControlWindow:
             (f"Comando: {describe_state(state)}", TEXT),
             *((line, MUTED) for line in self._help),
         ]
+        if connected:
+            lines.insert(1, describe_wifi(wifi))
         if video_connected is not None:
             lines.insert(1, ("Vídeo: recebendo" if video_connected else "Vídeo: sem sinal",
                              OK if video_connected else WARN))

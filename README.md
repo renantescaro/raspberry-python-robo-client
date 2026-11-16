@@ -62,6 +62,12 @@ Teclado e joystick funcionam juntos. Sem joystick configurado o cliente roda só
 As teclas podem ser trocadas no `.env` (`KEY_*`). Ao tirar o foco da janela as teclas são soltas
 e o robô para.
 
+### Wi-Fi do robô 📶
+
+O painel da janela mostra a qualidade do Wi-Fi do robô, enviada pelo servidor a cada 2 s:
+por exemplo, *Wi-Fi do robô: 91% (-46 dBm) - ótimo*. A cor indica a faixa: verde (ótimo ≥ 70%,
+bom ≥ 50%), laranja (fraco ≥ 30%) e vermelho (ruim). Com um servidor antigo aparece *sem dados*.
+
 ### Desligar o robô 🔌
 
 O botão **Desligar robô** fica no canto superior direito da janela. Por segurança é preciso

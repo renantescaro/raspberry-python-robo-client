@@ -5,6 +5,7 @@ import socket
 import pytest
 
 from robot_client import connection as connection_module
+from robot_client import protocol
 from robot_client.connection import RobotConnection
 
 
@@ -88,3 +89,53 @@ def test_close_is_idempotent(listener):
     conn.close()
     conn.close()
     assert not conn.connected
+
+
+def connected_pair(listener) -> tuple[RobotConnection, socket.socket]:
+    conn = RobotConnection(*listener.getsockname())
+    assert conn.send(b"\xa5\x00\x00\x00")
+    peer, _ = listener.accept()
+    return conn, peer
+
+
+def test_receive_without_connection_is_empty():
+    assert RobotConnection("127.0.0.1", free_port()).receive() == []
+
+
+def test_receive_returns_telemetry_and_keeps_partial_packet(listener, wait):
+    conn, peer = connected_pair(listener)
+    with peer:
+        first = protocol.encode_telemetry(protocol.Telemetry(91, -46))
+        second = protocol.encode_telemetry(protocol.Telemetry(20, -85))
+        peer.sendall(first + second[:2])
+        received = []
+        assert wait(lambda: received.extend(conn.receive()) or received)
+        assert received == [protocol.Telemetry(91, -46)]
+        peer.sendall(second[2:])
+        assert wait(lambda: received.extend(conn.receive()) or len(received) == 2)
+        assert received[1] == protocol.Telemetry(20, -85)
+    conn.close()
+
+
+def test_receive_does_not_block(listener):
+    conn, peer = connected_pair(listener)
+    with peer:
+        assert conn.receive() == []  # nada chegou: volta na hora
+        assert conn.connected
+    conn.close()
+
+
+def test_receive_ignores_unknown_packets(listener, wait):
+    conn, peer = connected_pair(listener)
+    with peer:
+        peer.sendall(b"\xee\x01\x02\x03" + protocol.encode_telemetry(protocol.Telemetry(50, -70)))
+        received = []
+        assert wait(lambda: received.extend(conn.receive()) or received)
+        assert received == [protocol.Telemetry(50, -70)]
+    conn.close()
+
+
+def test_receive_detects_server_close(listener, wait):
+    conn, peer = connected_pair(listener)
+    peer.close()
+    assert wait(lambda: conn.receive() == [] and not conn.connected)

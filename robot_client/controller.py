@@ -18,6 +18,8 @@ from .settings import Settings
 FRAME_EVENT = pygame.event.custom_type()
 # Tempo para o segundo clique confirmar o desligamento
 SHUTDOWN_CONFIRM_S = 3.0
+# Sem telemetria por esse tempo, a qualidade do Wi-Fi deixa de ser exibida
+TELEMETRY_STALE_S = 6.0
 
 
 def _post_frame_event() -> None:
@@ -86,6 +88,8 @@ def run_controller(settings: Settings) -> None:
     shutdown_state = SHUTDOWN_IDLE
     confirm_deadline = 0.0
     shutdown_lost_connection = False
+    telemetry: protocol.Telemetry | None = None
+    telemetry_time = 0.0
 
     try:
         while True:
@@ -140,6 +144,12 @@ def run_controller(settings: Settings) -> None:
                 last_sent = state if connection.send(protocol.encode(state)) else None
                 last_send_time = now
 
+            for packet in connection.receive():
+                if isinstance(packet, protocol.Telemetry):
+                    telemetry, telemetry_time = packet, now
+            if not connection.connected or now - telemetry_time > TELEMETRY_STALE_S:
+                telemetry = None
+
             if window is not None:
                 if feed is not None:
                     # Vários avisos acumulados resultam em um só desenho do quadro mais novo
@@ -154,6 +164,7 @@ def run_controller(settings: Settings) -> None:
                     joystick.get_name() if joystick is not None else None,
                     state,
                     feed.connected if feed is not None else None,
+                    telemetry,
                 )
                 window.set_shutdown_button(shutdown_state, connection.connected)
                 window.draw(force=redraw)

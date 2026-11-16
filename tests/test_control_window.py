@@ -3,7 +3,16 @@ import pygame
 import pytest
 
 from robot_client import protocol
-from robot_client.control_window import STATUS_ONLY_SIZE, ControlWindow, describe_state
+from robot_client.control_window import (
+    BAD,
+    MUTED,
+    OK,
+    STATUS_ONLY_SIZE,
+    WARN,
+    ControlWindow,
+    describe_state,
+    describe_wifi,
+)
 from robot_client.keyboard import keymap_help
 from robot_client.settings import DEFAULT_KEYS
 
@@ -155,3 +164,34 @@ def test_same_button_state_does_not_redraw():
     window.draw(force=True)
     window.set_shutdown_button(SHUTDOWN_IDLE, True)
     assert not window.draw()
+
+
+# --------------------------------------------------------------------- Wi-Fi
+
+
+@pytest.mark.parametrize(
+    ("telemetry", "text", "color"),
+    [
+        (protocol.Telemetry(91, -46), "Wi-Fi do robô: 91% (-46 dBm) - ótimo", OK),
+        (protocol.Telemetry(55, -72), "Wi-Fi do robô: 55% (-72 dBm) - bom", OK),
+        (protocol.Telemetry(35, -82), "Wi-Fi do robô: 35% (-82 dBm) - fraco", WARN),
+        (protocol.Telemetry(10, -95), "Wi-Fi do robô: 10% (-95 dBm) - ruim", BAD),
+        (protocol.Telemetry(None, -70), "Wi-Fi do robô: 60% (-70 dBm) - bom", OK),  # estimado pelo dBm
+        (protocol.Telemetry(80, None), "Wi-Fi do robô: 80% - ótimo", OK),
+        (protocol.Telemetry(), "Wi-Fi do robô: desconhecido", MUTED),
+        (None, "Wi-Fi do robô: sem dados", MUTED),
+    ],
+)
+def test_describe_wifi(telemetry, text, color):
+    assert describe_wifi(telemetry) == (text, color)
+
+
+def test_wifi_change_redraws_and_panel_fits_window():
+    window = ControlWindow(HELP)
+    window.set_status(True, "robo:5001", "Gamepad", STATE, wifi=protocol.Telemetry(91, -46))
+    assert window.draw()
+    assert window._panel.get_height() <= STATUS_ONLY_SIZE[1]  # todas as linhas cabem
+    window.set_status(True, "robo:5001", "Gamepad", STATE, wifi=protocol.Telemetry(91, -46))
+    assert not window.draw()
+    window.set_status(True, "robo:5001", "Gamepad", STATE, wifi=protocol.Telemetry(40, -80))
+    assert window.draw()
