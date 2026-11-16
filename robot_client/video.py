@@ -57,7 +57,7 @@ class VideoFeed(threading.Thread):
         self._lock = threading.Lock()
         self._frame = None
         self._frame_id = 0
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
         self.connected = False
 
     def latest(self) -> tuple[int, object]:
@@ -66,7 +66,7 @@ class VideoFeed(threading.Thread):
             return self._frame_id, self._frame
 
     def stop(self) -> None:
-        self._stop.set()
+        self._stop_event.set()
 
     def run(self) -> None:
         import cv2
@@ -74,12 +74,12 @@ class VideoFeed(threading.Thread):
         classifier = self._load_classifier(cv2)
         faces: list[tuple[int, int, int, int]] = []
         count = 0
-        while not self._stop.is_set():
+        while not self._stop_event.is_set():
             capture = self._open(cv2)
             if not capture.isOpened():
                 self._wait_reconnect()
                 continue
-            while not self._stop.is_set():
+            while not self._stop_event.is_set():
                 ok, frame = capture.read()
                 if not ok:
                     break
@@ -103,7 +103,7 @@ class VideoFeed(threading.Thread):
                     self._on_frame()
             capture.release()
             self.connected = False
-            if not self._stop.is_set():
+            if not self._stop_event.is_set():
                 self._wait_reconnect()
 
     def _open(self, cv2):
@@ -122,7 +122,7 @@ class VideoFeed(threading.Thread):
 
     def _wait_reconnect(self) -> None:
         self.connected = False
-        self._stop.wait(RECONNECT_DELAY_S)  # interrompido na hora por stop()
+        self._stop_event.wait(RECONNECT_DELAY_S)  # interrompido na hora por stop()
 
     def _load_classifier(self, cv2):
         if not self._face_cascade_path:
