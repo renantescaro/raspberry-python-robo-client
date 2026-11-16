@@ -28,12 +28,15 @@ def main() -> int:
         run_joystick_test(settings.joystick_index)
         return 0
 
-    if args.configure or not settings.bindings_complete:
+    # Sem teclado, o joystick é obrigatório: abre a configuração se faltar mapeamento
+    if args.configure or (not settings.bindings_complete and not settings.keyboard_enabled):
         from robot_client.config_gui import run_config
 
         if not run_config(settings):
             return 0
         settings = load_settings()
+    elif not settings.bindings_complete:
+        print("Joystick não configurado (use --configure); controlando só pelo teclado.")
 
     video_process = None
     if (settings.video_enabled or args.video) and settings.streaming_url:

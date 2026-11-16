@@ -1,7 +1,7 @@
 import os
 
 from robot_client.bindings import Binding
-from robot_client.settings import load_settings, save_bindings
+from robot_client.settings import DEFAULT_KEYS, load_settings, save_bindings
 
 LEGACY_ENV = """\
 JOYSTICK_ACELERADOR=botao-0
@@ -96,3 +96,20 @@ def test_save_bindings_overwrites_previous_value(env_file):
     content = env_file.read_text(encoding="utf-8")
     assert "JOYSTICK_FORWARD=axis:1:-" in content
     assert "button:9" not in content
+
+
+def test_keyboard_defaults(env_file):
+    s = load_settings()
+    assert s.keyboard_enabled
+    assert s.key_bindings["KEY_FORWARD"] == ("w", "up")
+    assert s.key_bindings["KEY_CAMERA_RIGHT"] == ("l",)
+    assert set(s.key_bindings) == set(DEFAULT_KEYS)
+
+
+def test_custom_keys(env_file):
+    env_file.write_text("KEYBOARD_ENABLED=false\nKEY_FORWARD= T , Left Shift \nKEY_LEFT=q\n", encoding="utf-8")
+    s = load_settings()
+    assert not s.keyboard_enabled
+    assert s.key_bindings["KEY_FORWARD"] == ("t", "left shift")
+    assert s.key_bindings["KEY_LEFT"] == ("q",)
+    assert s.key_bindings["KEY_RIGHT"] == DEFAULT_KEYS["KEY_RIGHT"]

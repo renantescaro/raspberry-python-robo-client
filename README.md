@@ -6,6 +6,7 @@ Aplicação desktop (Windows e Linux) que controla o robô com Raspberry Pi
 
 * envia comandos por socket TCP (protocolo binário de 4 bytes, apenas quando algo muda + heartbeat)
 * tela para mapear os botões/eixos do joystick
+* controle pelo teclado, junto ou no lugar do joystick
 * exibição do streaming de vídeo do robô, com detecção de rostos opcional
 
 ## Instalação
@@ -42,6 +43,23 @@ python main.py --configure      # remapear o joystick
 python main.py --video          # exibe o vídeo mesmo com VIDEO_ENABLED=false
 python main.py --test-joystick  # mostra os botões/eixos pressionados
 ```
+
+### Teclado ⌨️
+
+Com `KEYBOARD_ENABLED=true` (padrão) abre a janela **Controle do robô**, que mostra a conexão,
+o joystick e o comando atual. Com ela em foco:
+
+| Ação | Teclas padrão |
+|---|---|
+| frente / ré | `W` `↑` / `S` `↓` |
+| esquerda / direita | `A` `←` / `D` `→` |
+| câmera cima / baixo | `I` / `K` |
+| câmera esquerda / direita | `J` / `L` |
+| sair | `Esc` |
+
+Teclado e joystick funcionam juntos. Sem joystick configurado o cliente roda só com o teclado.
+As teclas podem ser trocadas no `.env` (`KEY_*`). Ao tirar o foco da janela as teclas são soltas
+e o robô para.
 
 Para testar sem o robô, rode o servidor em modo simulador: `python main.py --simulate`.
 
