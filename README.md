@@ -52,10 +52,10 @@ o joystick e o comando atual (e o vídeo, se habilitado). Com ela em foco:
 
 | Ação | Teclas padrão |
 |---|---|
-| frente / ré | `W` `↑` / `S` `↓` |
-| esquerda / direita | `A` `←` / `D` `→` |
-| câmera cima / baixo | `I` / `K` |
-| câmera esquerda / direita | `J` / `L` |
+| frente / ré | `W` / `S` |
+| esquerda / direita | `A` / `D` |
+| câmera cima / baixo | `↑` / `↓` |
+| câmera esquerda / direita | `←` / `→` |
 | sair | `Esc` |
 
 Teclado e joystick funcionam juntos. Sem joystick configurado o cliente roda só com o teclado.

@@ -49,14 +49,15 @@ def _size(key: str, default: tuple[int, int]) -> tuple[int, int]:
 # Teclas padrão (nomes do pygame: "w", "up", "left shift"...). Ficam aqui, e não em
 # keyboard.py, para este módulo não depender do pygame.
 DEFAULT_KEYS: dict[str, tuple[str, ...]] = {
-    "KEY_FORWARD": ("w", "up"),
-    "KEY_BACKWARD": ("s", "down"),
-    "KEY_LEFT": ("a", "left"),
-    "KEY_RIGHT": ("d", "right"),
-    "KEY_CAMERA_UP": ("i",),
-    "KEY_CAMERA_DOWN": ("k",),
-    "KEY_CAMERA_LEFT": ("j",),
-    "KEY_CAMERA_RIGHT": ("l",),
+    # Robô no WASD e câmera nas setas (uma mão em cada)
+    "KEY_FORWARD": ("w",),
+    "KEY_BACKWARD": ("s",),
+    "KEY_LEFT": ("a",),
+    "KEY_RIGHT": ("d",),
+    "KEY_CAMERA_UP": ("up",),
+    "KEY_CAMERA_DOWN": ("down",),
+    "KEY_CAMERA_LEFT": ("left",),
+    "KEY_CAMERA_RIGHT": ("right",),
 }
 
 

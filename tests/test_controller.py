@@ -112,7 +112,7 @@ def test_keyboard_only_drives_robot_and_esc_quits(wait, monkeypatch):
     try:
         assert wait(lambda: len(receiver.packets()) >= 1, timeout=3)
 
-        held.update({pygame.K_w, pygame.K_l})
+        held.update({pygame.K_w, pygame.K_RIGHT})
         pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_w))
         expected = protocol.ControlState(protocol.FORWARD, 0, 1)
         assert wait(lambda: expected in receiver.packets(), timeout=3)

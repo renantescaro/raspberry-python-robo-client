@@ -82,9 +82,16 @@ def keymap_help(names: dict[str, tuple[str, ...]]) -> list[str]:
     def fmt(key: str) -> str:
         return "/".join(name.upper() if len(name) == 1 else name for name in names[key])
 
+    camera_keys = tuple(names[f"KEY_CAMERA_{d}"] for d in ("UP", "DOWN", "LEFT", "RIGHT"))
+    if camera_keys == (("up",), ("down",), ("left",), ("right",)):
+        camera = "Câmera: setas do teclado"  # "cima up baixo down..." ficaria confuso
+    else:
+        camera = (
+            f"Câmera: cima {fmt('KEY_CAMERA_UP')}  baixo {fmt('KEY_CAMERA_DOWN')}  "
+            f"esq. {fmt('KEY_CAMERA_LEFT')}  dir. {fmt('KEY_CAMERA_RIGHT')}"
+        )
     return [
         f"Mover: frente {fmt('KEY_FORWARD')}  ré {fmt('KEY_BACKWARD')}  "
         f"esq. {fmt('KEY_LEFT')}  dir. {fmt('KEY_RIGHT')}",
-        f"Câmera: cima {fmt('KEY_CAMERA_UP')}  baixo {fmt('KEY_CAMERA_DOWN')}  "
-        f"esq. {fmt('KEY_CAMERA_LEFT')}  dir. {fmt('KEY_CAMERA_RIGHT')}  ·  Esc sai",
+        f"{camera}  ·  Esc sai",
     ]

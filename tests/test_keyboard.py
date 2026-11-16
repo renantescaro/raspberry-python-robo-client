@@ -29,9 +29,9 @@ def keymap() -> KeyMap:
 
 
 def test_default_keymap(keymap):
-    assert keymap.forward == (pygame.K_w, pygame.K_UP)
-    assert keymap.left == (pygame.K_a, pygame.K_LEFT)
-    assert keymap.camera_up == (pygame.K_i,)
+    assert keymap.forward == (pygame.K_w,)
+    assert keymap.left == (pygame.K_a,)
+    assert keymap.camera_up == (pygame.K_UP,)
 
 
 def test_unknown_key_name():
@@ -48,10 +48,10 @@ def test_nothing_pressed(keymap):
     ("keys", "flags"),
     [
         ((pygame.K_w,), protocol.FORWARD),
-        ((pygame.K_UP,), protocol.FORWARD),  # tecla alternativa
         ((pygame.K_s,), protocol.BACKWARD),
         ((pygame.K_a,), protocol.LEFT),
-        ((pygame.K_RIGHT,), protocol.RIGHT),
+        ((pygame.K_d,), protocol.RIGHT),
+        ((pygame.K_UP,), 0),  # setas movem só a câmera
         ((pygame.K_w, pygame.K_a), protocol.FORWARD | protocol.LEFT),
     ],
 )
@@ -62,12 +62,12 @@ def test_movement_keys(keymap, keys, flags):
 @pytest.mark.parametrize(
     ("keys", "camera"),
     [
-        ((pygame.K_i,), (-1, 0)),  # cima = negativo, igual ao analógico
-        ((pygame.K_k,), (1, 0)),
-        ((pygame.K_j,), (0, -1)),
-        ((pygame.K_l,), (0, 1)),
-        ((pygame.K_i, pygame.K_k), (0, 0)),  # opostos se anulam
-        ((pygame.K_i, pygame.K_l), (-1, 1)),
+        ((pygame.K_UP,), (-1, 0)),  # cima = negativo, igual ao analógico
+        ((pygame.K_DOWN,), (1, 0)),
+        ((pygame.K_LEFT,), (0, -1)),
+        ((pygame.K_RIGHT,), (0, 1)),
+        ((pygame.K_UP, pygame.K_DOWN), (0, 0)),  # opostos se anulam
+        ((pygame.K_UP, pygame.K_RIGHT), (-1, 1)),
     ],
 )
 def test_camera_keys(keymap, keys, camera):
@@ -99,5 +99,10 @@ def test_merge_states(joystick, keyboard, expected):
 
 def test_keymap_help_lists_configured_keys():
     lines = keymap_help(DEFAULT_KEYS)
-    assert "frente W/up" in lines[0]
-    assert "Esc" in lines[1]
+    assert "frente W  ré S  esq. A  dir. D" in lines[0]
+    assert lines[1] == "Câmera: setas do teclado  ·  Esc sai"
+
+
+def test_keymap_help_lists_custom_camera_keys():
+    names = {**DEFAULT_KEYS, "KEY_CAMERA_UP": ("i", "up")}
+    assert "Câmera: cima I/up  baixo down" in keymap_help(names)[1]
