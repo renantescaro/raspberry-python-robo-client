@@ -22,6 +22,19 @@ WARN = (235, 170, 80)
 LINE_HEIGHT = 24
 PADDING = 12
 
+# Botão de desligar: estados e aparência
+SHUTDOWN_IDLE = "idle"
+SHUTDOWN_CONFIRM = "confirm"
+SHUTDOWN_SENT = "sent"
+BUTTON_SIZE = (170, 34)
+_BUTTON_STYLE = {
+    # estado: (texto, fundo, texto)
+    SHUTDOWN_IDLE: ("Desligar robô", (60, 64, 74), TEXT),
+    SHUTDOWN_CONFIRM: ("Confirmar?", (200, 50, 50), (255, 255, 255)),
+    SHUTDOWN_SENT: ("Desligando...", (90, 70, 40), WARN),
+}
+_BUTTON_DISABLED = ((40, 42, 48), (110, 114, 124))
+
 _MOVES = (
     (protocol.FORWARD, "frente"),
     (protocol.BACKWARD, "ré"),
@@ -57,6 +70,19 @@ class ControlWindow:
         self._frame: pygame.Surface | None = None
         self._frame_array = None  # mantém viva a memória usada pelo frombuffer
         self._dirty = True
+        self.button_rect = pygame.Rect(
+            self.size[0] - BUTTON_SIZE[0] - PADDING, PADDING, *BUTTON_SIZE
+        )
+        self._button_key: tuple[str, bool] = (SHUTDOWN_IDLE, False)
+
+    def set_shutdown_button(self, state: str, enabled: bool) -> None:
+        key = (state, enabled)
+        if key != self._button_key:
+            self._button_key = key
+            self._dirty = True
+
+    def button_hit(self, pos: tuple[int, int]) -> bool:
+        return self.button_rect.collidepoint(pos)
 
     def set_status(
         self,
@@ -107,9 +133,19 @@ class ControlWindow:
             # Painel no rodapé quando há vídeo; no topo na janela só de status
             y = self.size[1] - self._panel.get_height() if self.video_enabled else 0
             self._screen.blit(self._panel, (0, y))
+        self._draw_button()
         pygame.display.flip()
         self._dirty = False
         return True
+
+    def _draw_button(self) -> None:
+        state, enabled = self._button_key
+        label, background, color = _BUTTON_STYLE[state]
+        if not enabled and state == SHUTDOWN_IDLE:
+            background, color = _BUTTON_DISABLED
+        pygame.draw.rect(self._screen, background, self.button_rect, border_radius=6)
+        text = self._font.render(label, True, color)
+        self._screen.blit(text, text.get_rect(center=self.button_rect.center))
 
     def _render_panel(self, lines: list[tuple[str, tuple[int, int, int]]]) -> pygame.Surface:
         height = PADDING * 2 + LINE_HEIGHT * len(lines) - (LINE_HEIGHT - 16)

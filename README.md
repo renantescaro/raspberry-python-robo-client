@@ -7,6 +7,7 @@ Aplicação desktop (Windows e Linux) que controla o robô com Raspberry Pi
 * envia comandos por socket TCP (protocolo binário de 4 bytes, apenas quando algo muda + heartbeat)
 * tela para mapear os botões/eixos do joystick
 * controle pelo teclado, junto ou no lugar do joystick
+* botão para desligar o Raspberry Pi
 * vídeo da câmera do robô dentro da janela de controle, com detecção de rostos opcional
 
 ## Instalação
@@ -60,6 +61,13 @@ o joystick e o comando atual (e o vídeo, se habilitado). Com ela em foco:
 Teclado e joystick funcionam juntos. Sem joystick configurado o cliente roda só com o teclado.
 As teclas podem ser trocadas no `.env` (`KEY_*`). Ao tirar o foco da janela as teclas são soltas
 e o robô para.
+
+### Desligar o robô 🔌
+
+O botão **Desligar robô** fica no canto superior direito da janela. Por segurança é preciso
+**clicar duas vezes**: o primeiro clique mostra *Confirmar?* (vermelho) por 3 segundos e só o
+segundo clique nesse intervalo envia o comando. O botão fica desabilitado sem conexão com o robô.
+O servidor precisa estar configurado para permitir o desligamento (veja o README do servidor).
 
 ### Vídeo 📷
 
