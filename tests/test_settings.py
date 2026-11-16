@@ -101,8 +101,8 @@ def test_save_bindings_overwrites_previous_value(env_file):
 def test_keyboard_defaults(env_file):
     s = load_settings()
     assert s.keyboard_enabled
-    assert s.key_bindings["KEY_FORWARD"] == ("w", "up")
-    assert s.key_bindings["KEY_CAMERA_RIGHT"] == ("l",)
+    assert s.key_bindings["KEY_FORWARD"] == ("w",)
+    assert s.key_bindings["KEY_CAMERA_RIGHT"] == ("right",)
     assert set(s.key_bindings) == set(DEFAULT_KEYS)
 
 
