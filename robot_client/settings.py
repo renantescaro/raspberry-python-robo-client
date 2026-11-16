@@ -46,6 +46,27 @@ def _size(key: str, default: tuple[int, int]) -> tuple[int, int]:
     return int(width), int(height)
 
 
+# Teclas padrão (nomes do pygame: "w", "up", "left shift"...). Ficam aqui, e não em
+# keyboard.py, para este módulo não depender do pygame.
+DEFAULT_KEYS: dict[str, tuple[str, ...]] = {
+    "KEY_FORWARD": ("w", "up"),
+    "KEY_BACKWARD": ("s", "down"),
+    "KEY_LEFT": ("a", "left"),
+    "KEY_RIGHT": ("d", "right"),
+    "KEY_CAMERA_UP": ("i",),
+    "KEY_CAMERA_DOWN": ("k",),
+    "KEY_CAMERA_LEFT": ("j",),
+    "KEY_CAMERA_RIGHT": ("l",),
+}
+
+
+def _key_names(key: str) -> tuple[str, ...]:
+    value = _raw(key)
+    if value is None:
+        return DEFAULT_KEYS[key]
+    return tuple(name.strip().lower() for name in value.split(",") if name.strip())
+
+
 @dataclass(frozen=True)
 class Settings:
     server_host: str | None
@@ -54,6 +75,9 @@ class Settings:
     heartbeat_s: float
     joystick_index: int
     bindings: dict[str, Binding]
+
+    keyboard_enabled: bool
+    key_bindings: dict[str, tuple[str, ...]]
 
     video_enabled: bool
     streaming_url: str | None
@@ -82,6 +106,8 @@ def load_settings() -> Settings:
         heartbeat_s=float(_raw("HEARTBEAT_S") or 0.25),
         joystick_index=int(_raw("JOYSTICK_INDEX") or 0),
         bindings=bindings,
+        keyboard_enabled=_bool("KEYBOARD_ENABLED", True),
+        key_bindings={key: _key_names(key) for key in DEFAULT_KEYS},
         video_enabled=_bool("VIDEO_ENABLED", False),
         streaming_url=_raw("STREAMING_URL"),
         video_size=_size("VIDEO_SIZE", (800, 600)),

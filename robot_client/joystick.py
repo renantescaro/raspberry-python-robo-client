@@ -23,12 +23,24 @@ JOYSTICK_EVENTS = (
 )
 
 
-def init_pygame() -> None:
+KEYBOARD_EVENTS = (
+    pygame.KEYDOWN,
+    pygame.KEYUP,
+    pygame.WINDOWFOCUSLOST,
+    pygame.WINDOWFOCUSGAINED,
+    pygame.WINDOWEXPOSED,
+)
+
+
+def init_pygame(keyboard: bool = False) -> None:
     """Inicializa só o necessário (sem áudio) e filtra a fila de eventos."""
     pygame.display.init()
     pygame.joystick.init()
     pygame.event.set_blocked(None)
-    pygame.event.set_allowed([*JOYSTICK_EVENTS, pygame.QUIT])
+    allowed = [*JOYSTICK_EVENTS, pygame.QUIT]
+    if keyboard:
+        allowed += KEYBOARD_EVENTS
+    pygame.event.set_allowed(allowed)
 
 
 class JoystickDevice:

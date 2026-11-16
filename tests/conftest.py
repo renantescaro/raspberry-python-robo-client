@@ -18,7 +18,7 @@ from robot_client import settings as settings_module  # noqa: E402
 
 _ENV_PREFIXES = (
     "JOYSTICK_", "SERVER_", "SOCKET_", "AXIS_", "SENSIBILIDADE_", "HEARTBEAT_",
-    "VIDEO_", "STREAMING_", "RESOLUCAO", "FACE_",
+    "VIDEO_", "STREAMING_", "RESOLUCAO", "FACE_", "KEY_", "KEYBOARD_",
 )
 
 
