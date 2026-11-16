@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from functools import partial
 
 import pygame
 
@@ -11,7 +12,7 @@ from .connection import RobotConnection
 from .control_window import SHUTDOWN_CONFIRM, SHUTDOWN_IDLE, SHUTDOWN_SENT, ControlWindow
 from .joystick import JoystickDevice, StateReader, init_pygame
 from .keyboard import KeyMap, keymap_help, merge_states, read_keyboard
-from .settings import FACE_CASCADE_FILE, Settings
+from .settings import Settings
 
 # Evento postado pela thread de vídeo a cada quadro novo (acorda o loop)
 FRAME_EVENT = pygame.event.custom_type()
@@ -61,11 +62,16 @@ def run_controller(settings: Settings) -> None:
     if video_enabled:
         from .video import VideoFeed  # importa o OpenCV só quando há vídeo
 
+        detector_factory = None
+        if settings.detect:
+            from .detection import build_detector
+
+            detector_factory = partial(build_detector, settings.detect, settings.detect_confidence)
         feed = VideoFeed(
             settings.streaming_url,
             window.size,
             settings.video_rotate_180,
-            str(FACE_CASCADE_FILE) if settings.face_detection else None,
+            detector_factory,
             on_frame=_post_frame_event,
         )
         feed.start()

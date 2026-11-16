@@ -8,7 +8,7 @@ Aplicação desktop (Windows e Linux) que controla o robô com Raspberry Pi
 * tela para mapear os botões/eixos do joystick
 * controle pelo teclado, junto ou no lugar do joystick
 * botão para desligar o Raspberry Pi
-* vídeo da câmera do robô dentro da janela de controle, com detecção de rostos opcional
+* vídeo da câmera do robô dentro da janela de controle, com detecção opcional de rostos, pessoas, gatos e cachorros
 
 ## Instalação
 
@@ -79,6 +79,22 @@ aparece na própria janela **Controle do robô**, com o status sobreposto no rod
 * a leitura e decodificação rodam numa thread (o OpenCV libera o GIL), sem atrasar os comandos;
   só o quadro mais recente é exibido
 * se o stream cair, o cliente reconecta sozinho
+
+### Detecção de rostos, pessoas e animais 🐱🐶
+
+`DETECT` escolhe o que marcar no vídeo, separado por vírgula: `face`, `person`, `cat`, `dog`.
+Exemplo: `DETECT=cat,dog`. Cada detecção aparece com uma caixa colorida e o nome (com a confiança).
+
+* `face` usa um classificador Haar (`assets/haarcascade_face.xml`): só acha rostos de frente
+* `person`, `cat` e `dog` usam o **YOLO11n** pelo módulo DNN do OpenCV (sem PyTorch). Ele
+  reconhece o corpo inteiro, de lado ou visto de baixo, o que importa numa câmera rente ao chão
+* o modelo (~11 MB) é baixado na primeira vez para `assets/yolo11n.onnx` e conferido pelo SHA-256;
+  sem internet, a detecção de pessoas/animais é desativada e o resto continua funcionando
+* `DETECT_CONFIDENCE` (padrão `0.5`) é a confiança mínima para mostrar uma pessoa/animal
+* a detecção roda na thread de vídeo, a cada 2 quadros (~20 ms por quadro numa CPU comum)
+* a chave antiga `FACE_DETECTION=true` continua valendo (equivale a incluir `face`)
+
+O modelo YOLO11n é da Ultralytics, licenciado em AGPL-3.0.
 
 Para testar sem o robô, rode o servidor em modo simulador: `python main.py --simulate`.
 

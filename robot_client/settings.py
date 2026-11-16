@@ -13,6 +13,11 @@ from .bindings import CONTROLS, Binding
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = PROJECT_DIR / ".env"
 FACE_CASCADE_FILE = PROJECT_DIR / "assets" / "haarcascade_face.xml"
+# Baixado na primeira vez que a detecção de pessoas/animais é usada (fora do git)
+YOLO_MODEL_FILE = PROJECT_DIR / "assets" / "yolo11n.onnx"
+
+# O que pode ser detectado no vídeo (DETECT=face,cat,dog)
+DETECTION_TARGETS = ("face", "person", "cat", "dog")
 
 # Nomes antigos (em português) continuam aceitos para não quebrar .env existentes
 _LEGACY_KEYS = {
@@ -68,6 +73,20 @@ def _key_names(key: str) -> tuple[str, ...]:
     return tuple(name.strip().lower() for name in value.split(",") if name.strip())
 
 
+def _targets() -> tuple[str, ...]:
+    value = _raw("DETECT") or ""
+    targets = [name.strip().lower() for name in value.split(",") if name.strip()]
+    unknown = [name for name in targets if name not in DETECTION_TARGETS]
+    if unknown:
+        raise ValueError(
+            f"DETECT: alvo desconhecido {', '.join(unknown)} (use {', '.join(DETECTION_TARGETS)})"
+        )
+    # Chave antiga: FACE_DETECTION=true equivale a incluir "face"
+    if _bool("FACE_DETECTION", False) and "face" not in targets:
+        targets.insert(0, "face")
+    return tuple(dict.fromkeys(targets))  # sem repetidos, mantendo a ordem
+
+
 @dataclass(frozen=True)
 class Settings:
     server_host: str | None
@@ -84,7 +103,8 @@ class Settings:
     streaming_url: str | None
     video_size: tuple[int, int]
     video_rotate_180: bool
-    face_detection: bool
+    detect: tuple[str, ...]
+    detect_confidence: float
 
     @property
     def bindings_complete(self) -> bool:
@@ -113,7 +133,8 @@ def load_settings() -> Settings:
         streaming_url=_raw("STREAMING_URL"),
         video_size=_size("VIDEO_SIZE", (800, 600)),
         video_rotate_180=_bool("VIDEO_ROTATE_180", True),
-        face_detection=_bool("FACE_DETECTION", False),
+        detect=_targets(),
+        detect_confidence=float(_raw("DETECT_CONFIDENCE") or 0.5),
     )
 
 
