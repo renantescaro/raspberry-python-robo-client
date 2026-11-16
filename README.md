@@ -7,7 +7,7 @@ Aplicação desktop (Windows e Linux) que controla o robô com Raspberry Pi
 * envia comandos por socket TCP (protocolo binário de 4 bytes, apenas quando algo muda + heartbeat)
 * tela para mapear os botões/eixos do joystick
 * controle pelo teclado, junto ou no lugar do joystick
-* exibição do streaming de vídeo do robô, com detecção de rostos opcional
+* vídeo da câmera do robô dentro da janela de controle, com detecção de rostos opcional
 
 ## Instalação
 
@@ -47,7 +47,7 @@ python main.py --test-joystick  # mostra os botões/eixos pressionados
 ### Teclado ⌨️
 
 Com `KEYBOARD_ENABLED=true` (padrão) abre a janela **Controle do robô**, que mostra a conexão,
-o joystick e o comando atual. Com ela em foco:
+o joystick e o comando atual (e o vídeo, se habilitado). Com ela em foco:
 
 | Ação | Teclas padrão |
 |---|---|
@@ -60,6 +60,17 @@ o joystick e o comando atual. Com ela em foco:
 Teclado e joystick funcionam juntos. Sem joystick configurado o cliente roda só com o teclado.
 As teclas podem ser trocadas no `.env` (`KEY_*`). Ao tirar o foco da janela as teclas são soltas
 e o robô para.
+
+### Vídeo 📷
+
+Com `VIDEO_ENABLED=true` e `STREAMING_URL=http://<pi>:8080/?action=stream`, a imagem da câmera
+aparece na própria janela **Controle do robô**, com o status sobreposto no rodapé.
+
+* `VIDEO_SIZE` é o tamanho da janela; o vídeo é ajustado mantendo a proporção
+* `VIDEO_ROTATE_180=false` se a imagem aparecer de cabeça para baixo
+* a leitura e decodificação rodam numa thread (o OpenCV libera o GIL), sem atrasar os comandos;
+  só o quadro mais recente é exibido
+* se o stream cair, o cliente reconecta sozinho
 
 Para testar sem o robô, rode o servidor em modo simulador: `python main.py --simulate`.
 

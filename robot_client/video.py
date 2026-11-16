@@ -1,106 +1,29 @@
-"""Exibição do streaming de vídeo do robô, com detecção de rostos opcional.
+"""Leitura do vídeo do robô (MJPEG por HTTP) em uma thread.
 
-Roda em um processo separado para não competir pelo GIL com o envio de
-comandos do joystick.
+A thread lê, decodifica, gira, redimensiona e (opcionalmente) detecta rostos.
+Essas operações do OpenCV rodam em C e liberam o GIL, então não atrasam o loop
+de controle. Só o quadro mais recente é guardado (menor latência possível); a
+janela (control_window.py) apenas o desenha.
 """
 
 from __future__ import annotations
 
-import multiprocessing
 import threading
-import time
+from typing import Callable
 
-WINDOW_NAME = "Video Streaming"
 FACE_DETECTION_EVERY_N_FRAMES = 3
 FACE_DETECTION_SCALE = 0.5  # detecta em imagem reduzida (bem mais rápido)
+RECONNECT_DELAY_S = 1.0
+# Limites de abertura/leitura do stream: sem eles uma conexão travada prende a thread
+STREAM_TIMEOUT_MS = 3000
 
 
-class _LatestFrameReader(threading.Thread):
-    """Lê o stream continuamente e guarda só o quadro mais recente (menor latência)."""
-
-    def __init__(self, source: str | int) -> None:
-        super().__init__(name="video-reader", daemon=True)
-        self._source = source
-        self._lock = threading.Lock()
-        self._frame = None
-        self._frame_id = 0
-        self.running = True
-
-    def run(self) -> None:
-        import cv2
-
-        while self.running:
-            capture = cv2.VideoCapture(self._source)
-            capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            if not capture.isOpened():
-                print(f"Não foi possível abrir o vídeo: {self._source}")
-                time.sleep(1.0)
-                continue
-            while self.running:
-                ok, frame = capture.read()
-                if not ok:
-                    print("Stream de vídeo interrompido, reconectando...")
-                    break
-                with self._lock:
-                    self._frame = frame
-                    self._frame_id += 1
-            capture.release()
-            time.sleep(1.0)
-
-    def latest(self) -> tuple[int, object]:
-        with self._lock:
-            return self._frame_id, self._frame
-
-
-def run_video(
-    source: str,
-    size: tuple[int, int],
-    rotate_180: bool,
-    face_cascade_path: str | None,
-) -> None:
-    import cv2
-
-    # "0", "1"... = índice de webcam local
-    video_source: str | int = int(source) if source.isdigit() else source
-    reader = _LatestFrameReader(video_source)
-    reader.start()
-
-    classifier = None
-    if face_cascade_path:
-        classifier = cv2.CascadeClassifier(face_cascade_path)
-        if classifier.empty():
-            print(f"Classificador não carregado: {face_cascade_path}")
-            classifier = None
-
-    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(WINDOW_NAME, *size)
-
-    shown_id = 0
-    frame_count = 0
-    faces: list[tuple[int, int, int, int]] = []
-    try:
-        while True:
-            frame_id, frame = reader.latest()
-            if frame is not None and frame_id != shown_id:
-                shown_id = frame_id
-                if rotate_180:
-                    frame = cv2.rotate(frame, cv2.ROTATE_180)
-                if classifier is not None:
-                    if frame_count % FACE_DETECTION_EVERY_N_FRAMES == 0:
-                        faces = _detect_faces(cv2, classifier, frame)
-                    frame_count += 1
-                    for x, y, w, h in faces:
-                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-                cv2.imshow(WINDOW_NAME, frame)
-
-            key = cv2.waitKey(5) & 0xFF
-            if key in (27, ord("q")):
-                break
-            if cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
-                break
-    finally:
-        reader.running = False
-        cv2.destroyAllWindows()
+def fit_size(frame_size: tuple[int, int], area: tuple[int, int]) -> tuple[int, int]:
+    """Maior tamanho que cabe em `area` mantendo a proporção do quadro."""
+    width, height = frame_size
+    area_w, area_h = area
+    scale = min(area_w / width, area_h / height)
+    return max(1, round(width * scale)), max(1, round(height * scale))
 
 
 def _detect_faces(cv2, classifier, frame) -> list[tuple[int, int, int, int]]:
@@ -115,17 +38,97 @@ def _detect_faces(cv2, classifier, frame) -> list[tuple[int, int, int, int]]:
     ]
 
 
-def start_video_process(
-    source: str,
-    size: tuple[int, int],
-    rotate_180: bool,
-    face_cascade_path: str | None,
-) -> multiprocessing.Process:
-    process = multiprocessing.Process(
-        target=run_video,
-        args=(source, size, rotate_180, face_cascade_path),
-        name="video",
-        daemon=True,
-    )
-    process.start()
-    return process
+class VideoFeed(threading.Thread):
+    def __init__(
+        self,
+        source: str,
+        area: tuple[int, int],
+        rotate_180: bool,
+        face_cascade_path: str | None = None,
+        on_frame: Callable[[], None] | None = None,
+    ) -> None:
+        super().__init__(name="video", daemon=True)
+        # "0", "1"... = índice de webcam local
+        self._source: str | int = int(source) if source.isdigit() else source
+        self._area = area
+        self._rotate_180 = rotate_180
+        self._face_cascade_path = face_cascade_path
+        self._on_frame = on_frame
+        self._lock = threading.Lock()
+        self._frame = None
+        self._frame_id = 0
+        self._stop = threading.Event()
+        self.connected = False
+
+    def latest(self) -> tuple[int, object]:
+        """Retorna (id, quadro BGR já no tamanho de exibição)."""
+        with self._lock:
+            return self._frame_id, self._frame
+
+    def stop(self) -> None:
+        self._stop.set()
+
+    def run(self) -> None:
+        import cv2
+
+        classifier = self._load_classifier(cv2)
+        faces: list[tuple[int, int, int, int]] = []
+        count = 0
+        while not self._stop.is_set():
+            capture = self._open(cv2)
+            if not capture.isOpened():
+                self._wait_reconnect()
+                continue
+            while not self._stop.is_set():
+                ok, frame = capture.read()
+                if not ok:
+                    break
+                self.connected = True
+                if self._rotate_180:
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                if classifier is not None:
+                    if count % FACE_DETECTION_EVERY_N_FRAMES == 0:
+                        faces = _detect_faces(cv2, classifier, frame)
+                    count += 1
+                    for x, y, w, h in faces:
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                height, width = frame.shape[:2]
+                size = fit_size((width, height), self._area)
+                if size != (width, height):
+                    frame = cv2.resize(frame, size, interpolation=cv2.INTER_LINEAR)
+                with self._lock:
+                    self._frame = frame
+                    self._frame_id += 1
+                if self._on_frame is not None:
+                    self._on_frame()
+            capture.release()
+            self.connected = False
+            if not self._stop.is_set():
+                self._wait_reconnect()
+
+    def _open(self, cv2):
+        if isinstance(self._source, int):
+            capture = cv2.VideoCapture(self._source)
+        else:
+            # URL: FFmpeg direto (sem testar outros backends) e com tempo limite
+            capture = cv2.VideoCapture(
+                self._source,
+                cv2.CAP_FFMPEG,
+                [cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, STREAM_TIMEOUT_MS,
+                 cv2.CAP_PROP_READ_TIMEOUT_MSEC, STREAM_TIMEOUT_MS],
+            )
+        capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        return capture
+
+    def _wait_reconnect(self) -> None:
+        self.connected = False
+        self._stop.wait(RECONNECT_DELAY_S)  # interrompido na hora por stop()
+
+    def _load_classifier(self, cv2):
+        if not self._face_cascade_path:
+            return None
+        classifier = cv2.CascadeClassifier(self._face_cascade_path)
+        if classifier.empty():
+            print(f"Classificador não carregado: {self._face_cascade_path}")
+            return None
+        return classifier
